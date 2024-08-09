@@ -1,8 +1,16 @@
+"""
+    ID=2 に終端抵抗の設定をしてください
+    設定はOriental Motor 提供のサポートソフトMEXE02を利用
+"""
+
+### 車体・モーターのパラメータ
 WHEEL_D = 0.314     # 8inch
-WHEEL_T = 0.4274    
+WHEEL_T = 0.4274
 M_PI = 3.1415
 GEAR_RATIO = 50
-MAX_BUFFER_SIZE = 512 
+
+### 受信メッセージ受取用
+MAX_BUFFER_SIZE = 512
 
 # クエリデータ
 Query_IDshare_L = bytearray([
