@@ -3,6 +3,10 @@
     設定はOriental Motor 提供のサポートソフトMEXE02を利用
 """
 
+import time
+
+DEBUG_MODE = False
+
 ### 車体・モーターのパラメータ
 WHEEL_D = 0.314     # 8inch
 WHEEL_T = 0.4274
