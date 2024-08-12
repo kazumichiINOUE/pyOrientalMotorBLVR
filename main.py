@@ -7,19 +7,21 @@ import Query as qry
 DEBUG_MODE = False
 
 # シリアルポートの設定
-SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"  # on Mac at SAITAMA
-#SERIAL_PORT = "/dev/cu.usbserial-AQ035HQB"  # on Mac at ONCT
-#SERIAL_PORT = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_AQ035HQB-if00-port0" # on Linux
+SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
 SERIAL_BAUDRATE = 230400    # BLV-R Default Setting
-ser = serial.Serial(
-    port=SERIAL_PORT,
-    baudrate=SERIAL_BAUDRATE,
-    bytesize=serial.EIGHTBITS,
-    parity=serial.PARITY_EVEN,
-    stopbits=serial.STOPBITS_ONE,
-    timeout=0.1
-)
-ser.inter_byte_timeout = None  # INLCR, ICRNL を無効化 (デフォルトで設定されていない)
+try:
+    ser = serial.Serial(
+        port=SERIAL_PORT,
+        baudrate=SERIAL_BAUDRATE,
+        bytesize=serial.EIGHTBITS,
+        parity=serial.PARITY_EVEN,
+        stopbits=serial.STOPBITS_ONE,
+        timeout=0.1
+    )
+    ser.inter_byte_timeout = None  # INLCR, ICRNL を無効化 (デフォルトで設定されていない)
+except serial.SerialException as e:
+    print(f"Error: {e}")
+    exit(0)
 
 # CRC計算関数
 def calc_crc(data):
