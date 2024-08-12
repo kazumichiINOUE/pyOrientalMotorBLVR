@@ -204,6 +204,56 @@ def calc_vw2hex(v, w):
     Query_NET_ID_WRITE[42] = int(motor_wl_rpm) & 0xFF
     return Query_NET_ID_WRITE
 
+# CRC計算関数
+def calc_crc(data):
+    crc = 0xFFFF
+    for pos in range(len(data) - 2):
+        crc ^= data[pos]
+        for _ in range(8):
+            if (crc & 1) != 0:
+                crc >>= 1
+                crc ^= 0xA001
+            else:
+                crc >>= 1
+    data[-2] = crc & 0xFF
+    data[-1] = (crc >> 8) & 0xFF
+
+# クエリにCRCを計算して追加
+def add_crc(query):
+    calc_crc(query)
+    return query
+
+# コマンド送信関数
+def send_cmd(ser, cmd):
+    add_crc(cmd)
+    ser.write(cmd)
+    if DEBUG_MODE:
+        print(f"[SEND] {' '.join(f'{byte:02x}' for byte in cmd)}")
+
+# 応答を読み取る関数
+def read_res(ser, length):
+    SERIAL_INTERVAL_RESP = 0.1
+    buf2 = bytearray()
+    tries = 3
+    while tries:
+        buf = ser.read(1)
+        if buf:
+            buf2.append(buf[0])
+            if len(buf2) >= length:
+                break
+        else:
+            tries -= 1
+        time.sleep(SERIAL_INTERVAL_RESP) 
+    if len(buf2) < length:
+        raise TimeoutError("Failed to read the expected number of bytes from the serial port.")
+    return buf2
+
+def simple_send_cmd(ser, cmd):
+    send_cmd(ser, cmd)
+    response = read_res(ser, 8)
+    if DEBUG_MODE:
+        print(f"[RESPONSE] {' '.join(f'{byte:02x}' for byte in response)}")
+
 '''
 def read_state():
     buf = bytearray(MAX_BUFFER_SIZE)
