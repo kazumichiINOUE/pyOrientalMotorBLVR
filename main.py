@@ -4,7 +4,30 @@ import math
 
 import Query as qry
 
-DEBUG_MODE = False
+class DummySerial:
+    """
+        ダミーのシリアルポートクラス
+        実際のシリアルポートへの接続に失敗した場合に機能する
+    """
+    def __init__(self):
+        self.port = None
+        self.baudrate = None
+        self.bytesize = None
+        self.parity = None
+        self.stopbits = None
+        self.timeout = None
+        self.inter_byte_timeout = None
+
+    def write(self, data):
+        pass
+        #print(f"Dummy write: {data}")
+
+    def read(self, size=1):
+        #print(f"Dummy read: size={size}")
+        return b'\x00'
+
+    def close(self):
+        print("Dummy serial closed.")
 
 # シリアルポートの設定
 SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
@@ -21,7 +44,8 @@ try:
     ser.inter_byte_timeout = None  # INLCR, ICRNL を無効化 (デフォルトで設定されていない)
 except serial.SerialException as e:
     print(f"Error: {e}")
-    exit(0)
+    print("Connect to Dummy Serial Class.")
+    ser = DummySerial()
 
 # Send setup command to motor drivers
 qry.simple_send_cmd(ser, qry.Query_IDshare_R);      print("send id share to R")
