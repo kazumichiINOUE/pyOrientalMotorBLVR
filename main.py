@@ -1,3 +1,10 @@
+"""
+    Robot control program 
+
+    author: Kazumichi INOUE
+    date: 2024/08/12
+"""
+
 import serial
 import time
 import math
