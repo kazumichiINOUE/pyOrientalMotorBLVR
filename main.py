@@ -47,20 +47,20 @@ except serial.SerialException as e:
     print("Connect to Dummy Serial Class.")
     ser = DummySerial()
 
-# Send setup command to motor drivers
-qry.simple_send_cmd(ser, qry.Query_IDshare_R);      print("send id share to R")
-qry.simple_send_cmd(ser, qry.Query_IDshare_L);      print("send id share to L")
-qry.simple_send_cmd(ser, qry.Query_READ_R);         print("send read R")
-qry.simple_send_cmd(ser, qry.Query_READ_L);         print("send read L")
-qry.simple_send_cmd(ser, qry.Query_WRITE_R);        print("send write R")
-qry.simple_send_cmd(ser, qry.Query_WRITE_L);        print("send write L")
-qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_R);    print("servo on R")
-qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_L);    print("servo on L")
-
-########################################
-# Start demonstration
-########################################
 try:
+    # Send setup command to motor drivers
+    qry.simple_send_cmd(ser, qry.Query_IDshare_R);      print("send id share to R")
+    qry.simple_send_cmd(ser, qry.Query_IDshare_L);      print("send id share to L")
+    qry.simple_send_cmd(ser, qry.Query_READ_R);         print("send read R")
+    qry.simple_send_cmd(ser, qry.Query_READ_L);         print("send read L")
+    qry.simple_send_cmd(ser, qry.Query_WRITE_R);        print("send write R")
+    qry.simple_send_cmd(ser, qry.Query_WRITE_L);        print("send write L")
+    qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_R);    print("servo on R")
+    qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_L);    print("servo on L")
+    
+    ########################################
+    # Start demonstration
+    ########################################
     for _ in range(2):
         # 前進
         v = 0.0
@@ -104,6 +104,8 @@ try:
     ser.close()
 
 except KeyboardInterrupt:
+    print("Pressed Ctrl + C")
+    print("Shutting down now...")
     # Ctrl+Cが押されたときに安全に終了する
     v = 0.0
     w = 0.0
