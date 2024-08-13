@@ -174,10 +174,10 @@ def calc_vw2hex(v, w):
         (v, w)　速度・角速度指令をクエリデータに換算する
         ID Share モードを使用する
     """
-    wr = v/(WHEEL_D/2) + w*WHEEL_T/WHEEL_D;
-    wl = v/(WHEEL_D/2) - w*WHEEL_T/WHEEL_D;
-    motor_wr_rpm = -wr/2/M_PI * GEAR_RATIO * 60;
-    motor_wl_rpm =  wl/2/M_PI * GEAR_RATIO * 60;
+    wr = v/(WHEEL_D/2) + w*WHEEL_T/WHEEL_D
+    wl = v/(WHEEL_D/2) - w*WHEEL_T/WHEEL_D
+    motor_wr_rpm = -wr/2/M_PI * GEAR_RATIO * 60
+    motor_wl_rpm =  wl/2/M_PI * GEAR_RATIO * 60
     Query_NET_ID_WRITE = bytearray([
         0x0F, 
         0x10,
