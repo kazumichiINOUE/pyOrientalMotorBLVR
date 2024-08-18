@@ -266,30 +266,26 @@ def read_state():
     read_res(buf, 57)
     
     OFFSET = 26
-    alarm_code_R = int.from_bytes(buf[3:7], 'big')
+    alarm_code_R  = int.from_bytes(buf[3:7], 'big')
     temp_driver_R = int.from_bytes(buf[7:11], 'big') * 0.1
-    temp_motor_R = int.from_bytes(buf[11:15], 'big') * 0.1
-    position_R = int.from_bytes(buf[15:19], 'big')
-    power_R = int.from_bytes(buf[19:23], 'big')
-    voltage_R = int.from_bytes(buf[23:27], 'big') * 0.1
+    temp_motor_R  = int.from_bytes(buf[11:15], 'big') * 0.1
+    position_R    = int.from_bytes(buf[15:19], 'big')
+    power_R       = int.from_bytes(buf[19:23], 'big')
+    voltage_R     = int.from_bytes(buf[23:27], 'big') * 0.1
     
-    alarm_code_L = int.from_bytes(buf[3 + OFFSET:7 + OFFSET], 'big')
+    alarm_code_L  = int.from_bytes(buf[3 + OFFSET:7 + OFFSET], 'big')
     temp_driver_L = int.from_bytes(buf[7 + OFFSET:11 + OFFSET], 'big') * 0.1
-    temp_motor_L = int.from_bytes(buf[11 + OFFSET:15 + OFFSET], 'big') * 0.1
-    position_L = int.from_bytes(buf[15 + OFFSET:19 + OFFSET], 'big')
-    power_L = int.from_bytes(buf[19 + OFFSET:23 + OFFSET], 'big')
-    voltage_L = int.from_bytes(buf[23 + OFFSET:27 + OFFSET], 'big') * 0.1
+    temp_motor_L  = int.from_bytes(buf[11 + OFFSET:15 + OFFSET], 'big') * 0.1
+    position_L    = int.from_bytes(buf[15 + OFFSET:19 + OFFSET], 'big')
+    power_L       = int.from_bytes(buf[19 + OFFSET:23 + OFFSET], 'big')
+    voltage_L     = int.from_bytes(buf[23 + OFFSET:27 + OFFSET], 'big') * 0.1
 
-    STEP_RESOLUTION = 1  # Placeholder value, replace with actual
-    WHEEL_D = 1  # Placeholder value, replace with actual
-    GEAR_RATIO = 1  # Placeholder value, replace with actual
-    WHEEL_T = 1  # Placeholder value, replace with actual
-
-    dist_L = position_L * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
-    dist_R = position_R * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
-    travel = (dist_L + dist_R) / 2.0
+    dist_L   = position_L * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    dist_R   = position_R * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    travel   = (dist_L + dist_R) / 2.0
     rotation = (dist_R - dist_L) / WHEEL_T
-    voltage = (voltage_L + voltage_R) / 2.0
+
+    voltage  = (voltage_L + voltage_R) / 2.0
 
     # Debug prints (optional)
     print(f"Alarm Code R: {alarm_code_R}")
