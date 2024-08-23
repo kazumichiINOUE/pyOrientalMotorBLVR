@@ -288,7 +288,7 @@ joystick = pygame.joystick.Joystick(0)
 joystick.init()
 print(f"検出されたジョイスティック: {joystick.get_name()}")
 
-# シリアルポートの設定
+# Initialize Oriental motor BLV-R 
 SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
 SERIAL_BAUDRATE = 230400    # BLV-R Default Setting
 try:
@@ -358,7 +358,7 @@ try:
         pass
 
     ########################################
-    # Joystick control
+    # Main loop start
     ########################################
     while True:
         # Get LiDAR data
@@ -404,7 +404,7 @@ try:
                     qry.read_state(ser)
                     break
 
-            # ボタンの状態を取得
+            # Get button state of joystick
             button_pressed_0 = joystick.get_button(0)  
             button_pressed_1 = joystick.get_button(1)  
             button_pressed_2 = joystick.get_button(2) 
@@ -435,11 +435,11 @@ try:
             print("Pressed Stop button")
             break
         Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);  # print(f"send v:{v}, w:{w} to LR")
 
         pygame.time.wait(100)
 
-    # 停止処理
+    # Terminate process
     v = 0.0
     w = 0.0
     Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
