@@ -69,6 +69,9 @@ try:
                 if event.button == 5:
                     print("Stored LiDAR data")
                     break
+                elif event.button == 11:
+                    qry.read_state(ser)
+                    break
 
             # ボタンの状態を取得
             button_pressed_0 = joystick.get_button(0)  
