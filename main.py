@@ -8,9 +8,26 @@
 import serial
 import time
 import math
+import pygame
+import sys
 
 import Query as qry
 import DummySerial
+
+# Initialize pygame & joypad
+pygame.init()
+pygame.joystick.init()
+
+# 接続されているジョイスティックの数を確認
+joystick_count = pygame.joystick.get_count()
+if joystick_count == 0:
+    print("ジョイスティックが接続されていません")
+    sys.exit()
+
+# 最初のジョイスティックを取得
+joystick = pygame.joystick.Joystick(0)
+joystick.init()
+print(f"検出されたジョイスティック: {joystick.get_name()}")
 
 # シリアルポートの設定
 SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
@@ -42,37 +59,52 @@ try:
     qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_L);    print("servo on L")
     
     ########################################
-    # Start demonstration
+    # Joystick control
     ########################################
-    for _ in range(2):
-        # 前進
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
+            if event.type == pygame.JOYBUTTONDOWN:
+                if event.button == 5:
+                    print("Stored LiDAR data")
+                    break
+
+            # ボタンの状態を取得
+            button_pressed_0 = joystick.get_button(0)  
+            button_pressed_1 = joystick.get_button(1)  
+            button_pressed_2 = joystick.get_button(2) 
+            button_pressed_3 = joystick.get_button(3) 
+            button_pressed_5 = joystick.get_button(5)
+            button_pressed_10 = joystick.get_button(10)
+            button_pressed_11 = joystick.get_button(11)
+
         v = 0.0
-        w = 0
+        w = 0.0
+        if button_pressed_0: # Turn Left
+            v = 0.0
+            w = math.pi/4
+            #print("0ボタンが押されています")
+        elif button_pressed_1: # Go forward
+            v = 0.2
+            w = 0.0
+            #print("1ボタンが押されています")
+        elif button_pressed_2: # Go back
+            v =-0.2
+            w = 0.0
+            #print("2ボタンが押されています")
+        elif button_pressed_3: # Turn Right
+            v = 0.0
+            w = -math.pi/4
+            #print("3ボタンが押されています")
+        elif button_pressed_10: # Shutdown
+            print("Pressed Stop button")
+            break
         Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
         qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
-        time.sleep(2)
-        
-        # 右旋回
-        v = 0
-        w = -math.pi/2/2
-        Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
-        time.sleep(2)
-    
-        # 前進
-        v = 0.0
-        w = 0
-        Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
-        time.sleep(2)
-        
-        # 左旋回
-        v = 0
-        w = math.pi/2/2
-        Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
-        time.sleep(2)
-    
+
+        pygame.time.wait(100)
+
     # 停止処理
     v = 0.0
     w = 0.0

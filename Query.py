@@ -236,7 +236,7 @@ def send_cmd(ser, cmd):
 
 # 応答を読み取る関数
 def read_res(ser, length):
-    SERIAL_INTERVAL_RESP = 0.1
+    SERIAL_INTERVAL_RESP = 0.01
     buf2 = bytearray()
     tries = 3
     while tries:
