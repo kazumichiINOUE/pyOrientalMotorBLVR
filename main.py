@@ -19,6 +19,7 @@ import numpy as np
 import Query as qry
 import DummySerial
 import DummyLidar
+import DummyJoystick
 
 # 色指定の形式変換
 def hex_to_rgb(hex_color):
@@ -287,12 +288,14 @@ pygame.joystick.init()
 joystick_count = pygame.joystick.get_count()
 if joystick_count == 0:
     print("ジョイスティックが接続されていません")
-    sys.exit()
 
 # 最初のジョイスティックを取得
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-print(f"検出されたジョイスティック: {joystick.get_name()}")
+if joystick_count > 0:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print(f"検出されたジョイスティック: {joystick.get_name()}")
+else:
+    joystick = DummyJoystick.DummyJoystick()
 
 # Initialize Oriental motor BLV-R 
 SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
