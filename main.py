@@ -437,7 +437,7 @@ try:
         Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
         qry.simple_send_cmd(ser, Query_NET_ID_WRITE);  # print(f"send v:{v}, w:{w} to LR")
 
-        pygame.time.wait(100)
+        pygame.time.wait(10)
 
     # Terminate process
     v = 0.0
