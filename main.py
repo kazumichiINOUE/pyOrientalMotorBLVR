@@ -18,6 +18,7 @@ import numpy as np
 
 import Query as qry
 import DummySerial
+import DummyLidar
 
 # 色指定の形式変換
 def hex_to_rgb(hex_color):
@@ -38,9 +39,9 @@ class Urg:
         try:
             self.ser = serial.Serial(self.device_file, self.baurate, timeout=self.timeout)
         except serial.SerialException as e:
-            print(f"Connection error {e}", file=sys.stderr)
-            print("Bye")
-            sys.exit(0)
+            #print(f"Connection error {e}", file=sys.stderr)
+            print("Return to main function.")
+            raise
         time.sleep(2)
 
         # VVコマンドを送信し通信テスト
@@ -271,7 +272,12 @@ def deg2rad(deg):
 
 # Initialize LiDAR
 DEBUG_MODE = False
-urg = Urg('/dev/cu.usbmodem213301', 115200)
+try:
+    urg = Urg('/dev/cu.usbmodem213301', 115200)
+except serial.SerialException as e:
+    print(f"Error: {e}")
+    print("Connect to Dummy Lidar Class.")
+    urg = DummyLidar.DummyLidar()
 
 # Initialize pygame & joypad
 pygame.init()
