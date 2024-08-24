@@ -3,6 +3,11 @@ import numpy as np
 from math import pi, acos
 import time
 
+# My modules
+import ReadConfig as rc
+# Include default configuration
+config = rc.read_config('config.lua')
+
 # 色指定の形式変換
 def hex_to_rgb(hex_color):
     hex_color = hex_color.lstrip('#')
@@ -42,15 +47,15 @@ def transf(scan_px, scan_py, cx, cy, cs, sn):
     return xd, yd
 
 def main():
-    width = 2000  # グリッドマップのサイズ
-    height = 1000
-    ox = width/4
-    oy = height/4 * 3
-    csize = 0.025  # [m] 格子の解像度
+    width = config.slam.window_width
+    height = config.slam.window_height
+    ox = config.slam.origin_x
+    oy = config.slam.origin_y
+    csize = config.slam.csize
     gmap = np.zeros((height, width), dtype=np.uint8)
     
-    scan_px = np.zeros(1081)
-    scan_py = np.zeros(1081)
+    scan_px = np.zeros(config.slam.scan_data_size)
+    scan_py = np.zeros(config.slam.scan_data_size)
     
     current_x = 0
     current_y = 0
@@ -60,7 +65,8 @@ def main():
     deg2pi = pi/180
     
     path = []
-    fname = f"./urglog"
+    fname = config.slam.urg_log_file
+    skip_data = config.slam.skip
     with open(fname, "r") as file:
         #best_x, best_y, best_a = 0, 0, 0
         for ind, line in enumerate(file):
@@ -95,7 +101,7 @@ def main():
             sn = np.sin(ca)
             
             eval_matrix = np.zeros_like(cx)     # 探索窓内での候補点に対する評価値
-            for i in range(0, len(scan_px), 32):    # スキャン点に対してループを作成する
+            for i in range(0, len(scan_px), skip_data):    # スキャン点に対してループを作成する
                                                     # この処理をベクトル化しても高速にはならなかった
                 xd, yd = transf(scan_px[i], scan_py[i], cx, cy, cs, sn)
                 ix, iy = xy2index(xd, yd, csize, ox, oy)
@@ -113,11 +119,11 @@ def main():
             gmap_show(gmap, width, height, 10)
     
     # 推定した姿勢の書き出し icpSlamの処理に合わせたフォーマットにしてある
-    with open("./result/path", "w") as file:
+    with open(config.slam.result_path, "w") as file:
         for p in path:
             file.write(f"{p[0]} {p[1]} {p[2]} {p[3]} 0.0 0.0 0.0 0.0 0.0 0 1 1\n")
         print("path store done.")
-    gmap_save(gmap, width, height)
+    gmap_save(gmap, width, height, fname = config.slam.result_gmap)
     print("result.png store done.")
     gmap_show(gmap, width, height)
 

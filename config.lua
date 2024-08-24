@@ -38,6 +38,19 @@ local config = {
     step_resolution = 0.01/180*math.pi,
     gear_ratio = 50.0,
   },
+
+  slam = {
+    window_height = 1000,
+    window_width = 2000,
+    origin_x = 500,
+    origin_y = 750,
+    csize = 0.025, --[m]
+    scan_data_size = 1081,
+    urg_log_file = "./urglog",
+    skip = 32,
+    result_path = "./result/path",
+    result_gmap = "./result/result.png",
+  },
 }
 
 return config
