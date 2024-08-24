@@ -10,11 +10,14 @@ import time
 from datetime import datetime
 import math
 from math import pi, cos, sin
-import pygame
 import sys
 import cv2
 import copy
 import numpy as np
+
+import os
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import pygame
 
 import Query as qry
 import DummySerial
