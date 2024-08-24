@@ -261,8 +261,6 @@ def cmd_ME(ser_dev):
         return True, head, data
     return False, head, []
 
-
-
 def index2angle(index):
     return (index + 0) * 360/1440.0 - 135.0
     # 以下の数値はUBG-04LX-F01の設定値
@@ -273,7 +271,6 @@ def angle2index(angle):
 
 def deg2rad(deg):
     return deg * pi/180.0
-
 
 # Initialize LiDAR
 try:
