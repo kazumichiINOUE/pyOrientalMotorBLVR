@@ -340,8 +340,8 @@ try:
     step_angle  = config.lidar.step_angle
     echo_size   = config.lidar.echo_size
 
-    height = config.map.height
-    width = config.map.width
+    height = config.map.window_height
+    width = config.map.window_width
     csize = config.map.csize
     img_org = np.zeros((height, width, 3), dtype=np.uint8)
     img_org[:] = hex_to_rgb(config.map.color.bg)

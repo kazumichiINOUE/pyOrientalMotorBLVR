@@ -21,8 +21,8 @@ local config = {
   map = {
     csize = 0.0125,
 
-    height = 700,
-    width  = 700,
+    window_height = 800,
+    window_width  = 800,
 
     color = {
       bg    = '#e6e7ed',
