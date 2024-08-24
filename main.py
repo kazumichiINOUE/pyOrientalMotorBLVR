@@ -19,6 +19,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
+# My modules
 import Query as qry
 import DummySerial
 import DummyLidar
@@ -26,6 +27,7 @@ import DummyJoystick
 import ReadConfig as rc
 from Colors import hex_to_rgb
 
+# Include default configuration
 config = rc.read_config('config.lua')
 
 """
