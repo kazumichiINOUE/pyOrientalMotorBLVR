@@ -24,14 +24,9 @@ import DummySerial
 import DummyLidar
 import DummyJoystick
 import ReadConfig as rc
+from Colors import hex_to_rgb
 
 config = rc.read_config('config.lua')
-
-
-# 色指定の形式変換
-def hex_to_rgb(hex_color):
-    hex_color = hex_color.lstrip('#')
-    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
 
 """
 Urg class
