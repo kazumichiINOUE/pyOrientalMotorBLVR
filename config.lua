@@ -30,6 +30,14 @@ local config = {
       point = '#33635c',
     },
   },
+
+  motor = {
+    debug_mode  = false,
+    wheel_d = 0.314, -- 8inch
+    wheel_t = 0.4274,
+    step_resolution = 0.01/180*math.pi,
+    gear_ratio = 50.0,
+  },
 }
 
 return config

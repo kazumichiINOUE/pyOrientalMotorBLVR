@@ -6,14 +6,20 @@
 import time
 import math
 
-DEBUG_MODE = False
+# My modules
+import ReadConfig as rc
+
+# Include default configuration
+config = rc.read_config('config.lua')
+
+DEBUG_MODE = config.motor.debug_mode
 
 ### 車体・モーターのパラメータ
-WHEEL_D = 0.314     # 8inch
-WHEEL_T = 0.4274
-M_PI = 3.1415
-STEP_RESOLUTION = 0.01/180*M_PI
-GEAR_RATIO = 50.0 
+WHEEL_D = config.motor.wheel_d
+WHEEL_T = config.motor.wheel_t
+M_PI = math.pi
+STEP_RESOLUTION = config.motor.step_resolution
+GEAR_RATIO = config.motor.gear_ratio
 
 ### 受信メッセージ受取用
 MAX_BUFFER_SIZE = 512
