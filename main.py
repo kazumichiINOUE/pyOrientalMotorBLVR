@@ -369,6 +369,25 @@ try:
             exit(0)
         with open(file_name, "w") as file:
             pass
+    elif config.lidar.store_data == False:
+        while True:
+            res = input("LiDARデータは保存されません．本当に良いですか？ [y/N]")
+            if res == "" or res == "n" or res == "N":
+                v = 0.0
+                w = 0.0
+                Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+                qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+                time.sleep(2)
+                
+                # turn off motor drivers
+                qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
+                qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+                
+                urg.close()
+                ser.close()
+                sys.exit()
+            elif res == "y" or res == "Y":
+                break
 
     ###
     # JOYBUTTON NUM
