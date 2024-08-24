@@ -23,6 +23,10 @@ import Query as qry
 import DummySerial
 import DummyLidar
 import DummyJoystick
+import ReadConfig as rc
+
+config = rc.read_config('config.lua')
+
 
 # 色指定の形式変換
 def hex_to_rgb(hex_color):
@@ -36,12 +40,14 @@ class Urg:
     """
     Urgクラスの定義
     """
-    def __init__(self, device_file, baurate):
+    LIDAR_DEBUG_MODE = config.lidar.debug_mode
+
+    def __init__(self, device_file, baudrate):
         self.device_file = device_file
-        self.baurate = baurate
+        self.baudrate = baudrate
         self.timeout = 1
         try:
-            self.ser = serial.Serial(self.device_file, self.baurate, timeout=self.timeout)
+            self.ser = serial.Serial(self.device_file, self.baudrate, timeout=self.timeout)
         except serial.SerialException as e:
             #print(f"Connection error {e}", file=sys.stderr)
             print("Return to main function.")
@@ -52,7 +58,7 @@ class Urg:
         success, response = cmd_VV(self.ser)
         if success is True:
             print("[OK] VV")
-            if DEBUG_MODE:
+            if LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] VV", file=sys.stderr)
@@ -64,7 +70,7 @@ class Urg:
         success, response = cmd_PP(self.ser)
         if success is True:
             print("[OK] PP")
-            if DEBUG_MODE:
+            if LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] PP", file=sys.stderr)
@@ -76,7 +82,7 @@ class Urg:
         success, response = cmd_II(self.ser)
         if success is True:
             print("[OK] II")
-            if DEBUG_MODE:
+            if LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] II", file=sys.stderr)
@@ -275,9 +281,8 @@ def deg2rad(deg):
 
 
 # Initialize LiDAR
-DEBUG_MODE = False
 try:
-    urg = Urg('/dev/cu.usbmodem213301', 115200)
+    urg = Urg(config.lidar.serial_port, config.lidar.baudrate)
 except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Lidar Class.")
@@ -335,39 +340,40 @@ try:
     center_range2 = []
     time_stamp = []
 
-    start_angle = -135.0
-    end_angle   =  135.0
-    step_angle  = 0.25
-    echo_size   = 3
+    start_angle = config.lidar.start_angle
+    end_angle   = config.lidar.end_angle
+    step_angle  = config.lidar.step_angle
+    echo_size   = config.lidar.echo_size
 
-    height = 700
-    width = 700
-    csize = 0.0125/1
+    height = config.map.height
+    width = config.map.width
+    csize = config.map.csize
     img_org = np.zeros((height, width, 3), dtype=np.uint8)
-    img_org[:] = hex_to_rgb('#e6e7ed')
-    cv2.line(img_org, (0, height//2), (width, height//2), hex_to_rgb('#6c6e75'), 1)
-    cv2.line(img_org, (width//2, 0),  (width//2, height), hex_to_rgb('#6c6e75'), 1)
+    img_org[:] = hex_to_rgb(config.map.color.bg)
+    cv2.line(img_org, (0, height//2), (width, height//2), hex_to_rgb(config.map.color.axis), 1)
+    cv2.line(img_org, (width//2, 0),  (width//2, height), hex_to_rgb(config.map.color.axis), 1)
     ticks = np.arange(-width/2*csize, width/2*csize + 0.5, 1)
     for i in ticks:
         if i == 0:
             continue
         tick_x = int(i / csize)
-        cv2.line(img_org, (width//2 - tick_x, height//2-10), (width//2 - tick_x, height//2 + 10), hex_to_rgb('#6c6e75'), 1)
-        cv2.line(img_org, (width//2 -10, height//2 - tick_x), (width//2 + 10, height//2- tick_x), hex_to_rgb('#6c6e75'), 1)
+        cv2.line(img_org, (width//2 - tick_x, height//2-10), (width//2 - tick_x, height//2 + 10), hex_to_rgb(config.map.color.axis), 1)
+        cv2.line(img_org, (width//2 -10, height//2 - tick_x), (width//2 + 10, height//2- tick_x), hex_to_rgb(config.map.color.axis), 1)
     img = copy.deepcopy(img_org)
     cv2.imshow("LiDAR", img)
 
     # Create file name to store LiDAR data
-    #file_name = input("データを保存するファイル名を指示してください（終了する場合はEnterキーを押してください）: ")
-    timestamp = int(time.time())
-    formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
-    file_name = "urglog_" + formatted_date
+    if config.lidar.store_data:
+        #file_name = input("データを保存するファイル名を指示してください（終了する場合はEnterキーを押してください）: ")
+        timestamp = int(time.time())
+        formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
+        file_name = "urglog_" + formatted_date
 
-    if file_name == "":
-        print("プログラムを終了します。")
-        exit(0)
-    with open(file_name, "w") as file:
-        pass
+        if file_name == "":
+            print("プログラムを終了します。")
+            exit(0)
+        with open(file_name, "w") as file:
+            pass
 
     ###
     # JOYBUTTON NUM
@@ -404,7 +410,7 @@ try:
             ix =int( px / csize + width//2)
             iy =int(-py / csize + height//2)
             if ix >= 0 and ix < width and iy >= 0 and iy < height:
-                cv2.rectangle(img, (ix-2, iy-2), (ix+2, iy+2), hex_to_rgb('#33635c'), -1)
+                cv2.rectangle(img, (ix-2, iy-2), (ix+2, iy+2), hex_to_rgb(config.map.color.point), -1)
         cv2.imshow("LiDAR", img)
         cv2.waitKey(5)
 
