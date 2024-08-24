@@ -30,12 +30,10 @@ from Colors import hex_to_rgb
 # Include default configuration
 config = rc.read_config('config.lua')
 
-"""
-Urg class
-"""
 class Urg:
     """
-    Urgクラスの定義
+    LiDAR connection and control class
+    Setting parameters for this class are written in config.lua.
     """
     LIDAR_DEBUG_MODE = config.lidar.debug_mode
 
