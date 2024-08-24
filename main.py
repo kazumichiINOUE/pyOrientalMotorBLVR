@@ -369,6 +369,17 @@ try:
     with open(file_name, "w") as file:
         pass
 
+    ###
+    # JOYBUTTON NUM
+    ###
+    NUM_JOY_GET_LIDAR  = 5
+    NUM_JOY_GET_STATE  = 11
+    NUM_JOY_TURN_LEFT  = 0
+    NUM_JOY_GO_FORWARD = 1
+    NUM_JOY_GO_BACK    = 2
+    NUM_JOY_TURN_RIGHT = 3
+    NUM_JOY_SHUTDOWN   = 10
+
     ########################################
     # Main loop start
     ########################################
@@ -402,7 +413,7 @@ try:
             if event.type == pygame.QUIT:
                 sys.exit()
             if event.type == pygame.JOYBUTTONDOWN:
-                if event.button == 5:
+                if event.button == NUM_JOY_GET_LIDAR:
                     with open(file_name, "a") as file:
                         data_size = 1081*3
                         ts = int(time.time() * 1e3)
@@ -412,38 +423,36 @@ try:
                         file.write(f"{ts}\n")
                     print("Stored LiDAR data")
                     break
-                elif event.button == 11:
+                elif event.button == NUM_JOY_GET_STATE:
                     qry.read_state(ser)
                     break
 
             # Get button state of joystick
-            button_pressed_0 = joystick.get_button(0)  
-            button_pressed_1 = joystick.get_button(1)  
-            button_pressed_2 = joystick.get_button(2) 
-            button_pressed_3 = joystick.get_button(3) 
-            button_pressed_5 = joystick.get_button(5)
-            button_pressed_10 = joystick.get_button(10)
-            button_pressed_11 = joystick.get_button(11)
+            button_pressed_turn_left  = joystick.get_button(NUM_JOY_TURN_LEFT)  
+            button_pressed_go_forward = joystick.get_button(NUM_JOY_GO_FORWARD)  
+            button_pressed_go_back    = joystick.get_button(NUM_JOY_GO_BACK) 
+            button_pressed_turn_right = joystick.get_button(NUM_JOY_TURN_RIGHT) 
+            button_pressed_shutdown   = joystick.get_button(NUM_JOY_SHUTDOWN)
 
         v = 0.0
         w = 0.0
-        if button_pressed_0: # Turn Left
+        if button_pressed_turn_left: # Turn Left
             v = 0.0
             w = math.pi/4
             #print("0ボタンが押されています")
-        elif button_pressed_1: # Go forward
+        elif button_pressed_go_forward: # Go forward
             v = 0.2
             w = 0.0
             #print("1ボタンが押されています")
-        elif button_pressed_2: # Go back
+        elif button_pressed_go_back: # Go back
             v =-0.2
             w = 0.0
             #print("2ボタンが押されています")
-        elif button_pressed_3: # Turn Right
+        elif button_pressed_turn_right: # Turn Right
             v = 0.0
             w = -math.pi/4
             #print("3ボタンが押されています")
-        elif button_pressed_10: # Shutdown
+        elif button_pressed_shutdown: # Shutdown
             print("Pressed Stop button")
             break
         Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
