@@ -431,14 +431,15 @@ try:
                 sys.exit()
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == NUM_JOY_GET_LIDAR:
-                    with open(file_name, "a") as file:
-                        data_size = 1081*3
-                        ts = int(time.time() * 1e3)
-                        file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
-                        for d in urg_data:
-                            file.write(f"{d[1]} 0 0 ")
-                        file.write(f"{ts}\n")
-                    print("Stored LiDAR data")
+                    if config.lidar.store_data:
+                        with open(file_name, "a") as file:
+                            data_size = 1081*3
+                            ts = int(time.time() * 1e3)
+                            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                            for d in urg_data:
+                                file.write(f"{d[1]} 0 0 ")
+                            file.write(f"{ts}\n")
+                        print("Stored LiDAR data")
                     break
                 elif event.button == NUM_JOY_GET_STATE:
                     qry.read_state(ser)
