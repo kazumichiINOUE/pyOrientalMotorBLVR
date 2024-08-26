@@ -26,6 +26,7 @@ import DummyLidar
 import DummyJoystick
 import ReadConfig as rc
 from Colors import hex_to_rgb
+import SlamOnline
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -397,6 +398,8 @@ try:
     NUM_JOY_TURN_RIGHT = 3
     NUM_JOY_SHUTDOWN   = 10
 
+    slam = SlamOnline.Slam()
+
     ########################################
     # Main loop start
     ########################################
@@ -440,6 +443,10 @@ try:
                                 file.write(f"{d[1]} 0 0 ")
                             file.write(f"{ts}\n")
                         print("Stored LiDAR data")
+                    slam.update(urg_data)
+                    timestamp = int(time.time())
+                    formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
+                    print(f"slam update:{formatted_date}")
                     break
                 elif event.button == NUM_JOY_GET_STATE:
                     qry.read_state(ser)
