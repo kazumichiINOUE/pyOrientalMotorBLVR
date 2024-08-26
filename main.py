@@ -35,9 +35,9 @@ class Urg:
     LiDAR connection and control class
     Setting parameters for this class are written in config.lua.
     """
-    LIDAR_DEBUG_MODE = config.lidar.debug_mode
 
     def __init__(self, device_file, baudrate):
+        self.LIDAR_DEBUG_MODE = config.lidar.debug_mode
         self.device_file = device_file
         self.baudrate = baudrate
         self.timeout = 1
@@ -53,7 +53,7 @@ class Urg:
         success, response = cmd_VV(self.ser)
         if success is True:
             print("[OK] VV")
-            if LIDAR_DEBUG_MODE:
+            if self.LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] VV", file=sys.stderr)
@@ -65,7 +65,7 @@ class Urg:
         success, response = cmd_PP(self.ser)
         if success is True:
             print("[OK] PP")
-            if LIDAR_DEBUG_MODE:
+            if self.LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] PP", file=sys.stderr)
@@ -77,7 +77,7 @@ class Urg:
         success, response = cmd_II(self.ser)
         if success is True:
             print("[OK] II")
-            if LIDAR_DEBUG_MODE:
+            if self.LIDAR_DEBUG_MODE:
                 print(response, file=sys.stderr)
         else:
             print("[False] II", file=sys.stderr)
