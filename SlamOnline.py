@@ -21,7 +21,7 @@ def update_map(map, scan_px, scan_py, current_x, current_y, current_a, width, he
     map[iy[mask], ix[mask]] = 1
     return map
 
-def gmap_show(map, width, height, waitTime = 0):
+def gmap_show(map, width, height, path, waitTime = 0):
     img_org = np.zeros((height, width, 3), dtype=np.uint8)
     img_org[:] = hex_to_rgb('#e6e7ed')  # 背景色
     img_org[map == 1] = hex_to_rgb('#33635c')
@@ -59,12 +59,16 @@ class Slam:
         self.current_x = 0
         self.current_y = 0
         self.current_a = 0
+        self.path = []
     
         self.gmap = np.zeros((self.height, self.width), dtype=np.uint8)
         self.scan_px = np.zeros(config.slam.scan_data_size)
         self.scan_py = np.zeros(config.slam.scan_data_size)
 
-    def update(self, urg_data):
+    def get_path(self):
+        return self.path
+
+    def update(self, ts, urg_data):
         skip_data = config.slam.skip
         data_size = config.slam.scan_data_size
         start_angle = config.lidar.start_angle
@@ -79,9 +83,9 @@ class Slam:
         if self.count == 0:
             self.count += 1
             self.gmap = update_map(self.gmap, self.scan_px, self.scan_py, self.current_x, self.current_y, self.current_a, self.width, self.height, self.ox, self.oy, self.csize)
-            gmap_show(self.gmap, self.width, self.height, 10)
+            gmap_show(self.gmap, self.width, self.height, self.path, 10)
 
-            #path.append([ts, current_x, current_y, current_a])
+            self.path.append([ts, self.current_x, self.current_y, self.current_a])
             return
         
         # 現在姿勢を中心とした探索窓をnp.meshgrid()で作成する
@@ -106,7 +110,7 @@ class Slam:
         self.current_x, self.current_y, self.current_a = cx[best_index], cy[best_index], ca[best_index]
         
         self.gmap = update_map(self.gmap, self.scan_px, self.scan_py, self.current_x, self.current_y, self.current_a, self.width, self.height, self.ox, self.oy, self.csize)
-        #path.append([ts, current_x, current_y, current_a])
+        self.path.append([ts, self.current_x, self.current_y, self.current_a])
         #print(f"{current_x:.3f} {current_y:.3f} {current_a*180/pi:.1f}")
-        gmap_show(self.gmap, self.width, self.height, 10)
+        gmap_show(self.gmap, self.width, self.height, self.path, 10)
         self.count += 1

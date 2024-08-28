@@ -27,6 +27,8 @@ import DummyJoystick
 import ReadConfig as rc
 from Colors import hex_to_rgb
 import SlamOnline
+import device_model
+import Odometory
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -273,6 +275,9 @@ def angle2index(angle):
 def deg2rad(deg):
     return deg * pi/180.0
 
+def updateData(DeviceModel):
+    pass
+
 # Initialize LiDAR
 try:
     urg = Urg(config.lidar.serial_port, config.lidar.baudrate)
@@ -400,10 +405,28 @@ try:
 
     slam = SlamOnline.Slam()
 
+    ###
+    # Acc
+    ###
+    addrLis = [0x50]
+    device = device_model.DeviceModel("WTC1", "/dev/cu.usbserial-11320", 9600, addrLis, updateData)
+    device.openDevice()
+    device.startLoopRead()
+
+    odo = Odometory.Odometory()
+
     ########################################
     # Main loop start
     ########################################
     while True:
+        ts = int(time.time() * 1e3)
+        az = device.get_data(0x50, "AccZ")
+        odo = qry.read_odo(ser, odo)
+        if az != "None":
+            with open("enclog", "a") as file:
+                file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
+
+        print(f"{ts} {odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.1f} {az}")
         # Get LiDAR data
         success, urg_data = urg.one_shot()
         x = []
@@ -434,6 +457,7 @@ try:
                 sys.exit()
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == NUM_JOY_GET_LIDAR:
+                    ts = 0
                     if config.lidar.store_data:
                         with open(file_name, "a") as file:
                             data_size = 1081*3
@@ -443,10 +467,14 @@ try:
                                 file.write(f"{d[1]} 0 0 ")
                             file.write(f"{ts}\n")
                         print("Stored LiDAR data")
-                    slam.update(urg_data)
+                    slam.update(ts, urg_data)
+                    path = slam.get_path()
                     timestamp = int(time.time())
                     formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
                     print(f"slam update:{formatted_date}")
+
+                    for p in path:
+                        print(f"{p[1]:.3f} {p[2]:.3f} {p[3]*180/math.pi:.1f}")
                     break
                 elif event.button == NUM_JOY_GET_STATE:
                     qry.read_state(ser)

@@ -317,3 +317,34 @@ def read_state(ser):
     print(f"Rotation: {rotation}")
     print(f"Voltage: {voltage}")
     print("=====")
+
+def read_odo(ser, odo):
+    buf = bytearray(MAX_BUFFER_SIZE)
+    
+    send_cmd(ser, Query_NET_ID_READ)
+    buf = read_res(ser, 57)
+
+    OFFSET = 26
+    position_R    = int.from_bytes(buf[15:19], 'big', signed=True)
+    position_L    = int.from_bytes(buf[15 + OFFSET:19 + OFFSET], 'big', signed=True)
+
+    dist_L   = position_L * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    dist_R   =-position_R * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    travel   = (dist_L + dist_R) / 2.0
+    rotation = (dist_R - dist_L) / WHEEL_T
+
+    dl = travel - odo.travel;
+    dth = rotation - odo.rotation;
+    odo.rx += dl * math.cos(odo.ra);
+    odo.ry += dl * math.sin(odo.ra);
+    odo.ra += dth;
+    if odo.ra > math.pi:
+        odo.ra -= 2*math.pi;
+    elif odo.ra < -math.pi:
+        odo.ra += 2*math.pi;
+    odo.dist_R = dist_R;
+    odo.dist_L = dist_L;
+    odo.travel = travel;
+    odo.rotation = rotation;
+
+    return odo

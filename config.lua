@@ -10,7 +10,7 @@ local config = {
   lidar = {
     debug_mode  = false,
     store_data  = false,
-    serial_port = '/dev/cu.usbmodem213301',
+    serial_port = '/dev/cu.usbmodem113301',
     baudrate    = 115200,
     start_angle = -135.0,
     end_angle   =  135.0,
@@ -19,10 +19,10 @@ local config = {
   },
 
   map = {
-    csize = 0.0125,
+    csize = 0.025,
 
-    window_height = 800,
-    window_width  = 800,
+    window_height = 500,
+    window_width  = 500,
 
     color = {
       bg    = '#e6e7ed',
@@ -42,12 +42,13 @@ local config = {
   slam = {
     window_height = 1000,
     window_width = 2000,
-    origin_x = 500,
-    origin_y = 750,
+    origin_x = 1000,
+    origin_y = 500,
     csize = 0.025, --[m]
     scan_data_size = 1081,
-    urg_log_file = "./urglog",
     skip = 32,
+    -- offline SLAM settings as follows:
+    urg_log_file = "./urglog_2024_08_27_17_20_20",
     result_path = "./result/path",
     result_gmap = "./result/result.png",
   },
