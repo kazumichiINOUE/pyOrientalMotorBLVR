@@ -90,12 +90,12 @@ def main():
     
             start_time = time.time()
             # 現在姿勢を中心とした探索窓をnp.meshgrid()で作成する
-            ddx = np.arange(-0.5 + current_x, 0.5 + current_x, csize)
-            ddy = np.arange(-0.5 + current_y, 0.5 + current_y, csize)
-            max_length = 30 # 回転方向を探索する際の1ピクセルを超えないことを保証する距離
+            ddx = np.arange(-1.0 + current_x, 1.0 + current_x, csize)
+            ddy = np.arange(-1.0 + current_y, 1.0 + current_y, csize)
+            max_length = 15 # 回転方向を探索する際の1ピクセルを超えないことを保証する距離
                             # 長い方が処理時間は伸びる(delta_thが細かくなるため)
             delta_th = acos(1 - csize**2/max_length**2)
-            dth = np.arange(-pi/4 + current_a, pi/4 + current_a, delta_th)
+            dth = np.arange(-pi/3 + current_a, pi/3 + current_a, delta_th)
             cx, cy, ca = np.meshgrid(ddx, ddy, dth)
             cs = np.cos(ca)
             sn = np.sin(ca)

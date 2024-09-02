@@ -9,7 +9,7 @@ local config = {
 
   lidar = {
     debug_mode  = false,
-    store_data  = false,
+    store_data  = true,
     serial_port = '/dev/ttyACM1',
     --serial_port = '/dev/cu.usbmodem113301',
     baudrate    = 115200,
@@ -56,7 +56,7 @@ local config = {
     scan_data_size = 1081,
     skip = 32,
     -- offline SLAM settings as follows:
-    urg_log_file = "./urglog_2024_08_27_17_20_20",
+    urg_log_file = "./urglog_2024_09_02_10_25_49",
     result_path = "./result/path",
     result_gmap = "./result/result.png",
   },

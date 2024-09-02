@@ -213,17 +213,17 @@ try:
                 sys.exit()
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == NUM_JOY_GET_LIDAR:
-                    ts = 0
+                    ts = int(time.time() * 1e3)
                     if config.lidar.store_data:
                         with open(file_name, "a") as file:
                             data_size = 1081*3
-                            ts = int(time.time() * 1e3)
                             file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
                             for d in urg_data:
                                 file.write(f"{d[1]} 0 0 ")
                             file.write(f"{ts}\n")
                         print("Stored LiDAR data")
                     slam.update(ts, urg_data, odo)
+                    slam.store_log()
                     path = slam.get_path()
                     timestamp = int(time.time())
                     formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
