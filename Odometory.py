@@ -7,4 +7,6 @@ class Odometory():
         self.rx = 0.0
         self.ry = 0.0
         self.ra = 0.0
+        self.dl = 0.0
+        self.dth = 0.0
 

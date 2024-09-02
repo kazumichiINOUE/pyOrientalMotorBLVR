@@ -10,7 +10,8 @@ local config = {
   lidar = {
     debug_mode  = false,
     store_data  = false,
-    serial_port = '/dev/cu.usbmodem113301',
+    serial_port = '/dev/ttyACM1',
+    --serial_port = '/dev/cu.usbmodem113301',
     baudrate    = 115200,
     start_angle = -135.0,
     end_angle   =  135.0,
@@ -32,6 +33,8 @@ local config = {
   },
 
   motor = {
+    serial_port = '/dev/ttyUSB0',
+    baudrate    = 230400, -- BLV-R Default Setting
     debug_mode  = false,
     wheel_d = 0.314, -- 8inch
     wheel_t = 0.4274,
@@ -39,10 +42,15 @@ local config = {
     gear_ratio = 50.0,
   },
 
+  wtc = {
+	serial_port = '/dev/ttyUSB1',
+	baudrate = 9600,
+  },
+
   slam = {
     window_height = 1000,
-    window_width = 2000,
-    origin_x = 1000,
+    window_width = 1000,
+    origin_x = 500,
     origin_y = 500,
     csize = 0.025, --[m]
     scan_data_size = 1081,
