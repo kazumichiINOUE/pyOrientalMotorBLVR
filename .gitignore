@@ -6,3 +6,5 @@ test*
 *.so
 result*
 enclog
+path.log
+result.png
