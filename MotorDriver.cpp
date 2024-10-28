@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "query.h"
+#include <cmath>
 
 namespace py = pybind11;
 
@@ -193,6 +194,36 @@ void read_state(int fd) {
   //show_state(buf);
 }
 
+std::tuple<double, double, double, double, double> read_odo2(int fd, double ox, double oy, double oa, double odo_travel, double odo_rotation) {
+  uint8_t buf[MAX_BUFFER_SIZE];
+  send_cmd(fd, Query_NET_ID_READ, sizeof(Query_NET_ID_READ));
+  read_res(fd, buf, 57);
+
+  int OFFSET = 26;
+  int position_R = -static_cast<int>(buf[15] << 24 | buf[16] << 16 | buf[17] << 8 | buf[18]);
+  int position_L =  static_cast<int>(buf[15 + OFFSET] << 24 | buf[16 + OFFSET] << 16 | buf[17 + OFFSET] << 8 | buf[18 + OFFSET]);
+
+  double dist_L = position_L * STEP_RESOLUTION * 0.5*WHEEL_D / GEAR_RATIO;
+  double dist_R = position_R * STEP_RESOLUTION * 0.5*WHEEL_D / GEAR_RATIO;
+  double travel = (dist_L + dist_R)/2.0;
+  double rotation = (dist_R - dist_L)/WHEEL_T;
+
+  double dl = travel - odo_travel;
+  double dth = rotation - odo_rotation;
+  ox += dl * cos(oa);
+  oy += dl * sin(oa);
+  oa += dth;
+  if (oa > M_PI) {
+    oa -= 2*M_PI;
+  } else if (oa < -M_PI) {
+    oa += 2*M_PI;
+  }
+  odo_travel = travel;
+  odo_rotation = rotation;
+
+  return std::make_tuple(ox, oy, oa, odo_travel, odo_rotation);
+}
+
 void show_state(int fd) {
   uint8_t buf[MAX_BUFFER_SIZE];
   send_cmd(fd, Query_NET_ID_READ, sizeof(Query_NET_ID_READ));
@@ -202,7 +233,7 @@ void show_state(int fd) {
   int alarm_code_R     = static_cast<int>(buf[ 3] << 24 | buf[ 4] << 16 | buf[ 5] << 8 | buf[ 6]);
   double temp_driver_R = static_cast<int>(buf[ 7] << 24 | buf[ 8] << 16 | buf[ 9] << 8 | buf[10]) * 0.1;
   double temp_motor_R  = static_cast<int>(buf[11] << 24 | buf[12] << 16 | buf[13] << 8 | buf[14]) * 0.1;
-  int position_R       = static_cast<int>(buf[15] << 24 | buf[16] << 16 | buf[17] << 8 | buf[18]);
+  int position_R       =-static_cast<int>(buf[15] << 24 | buf[16] << 16 | buf[17] << 8 | buf[18]);
   int power_R          = static_cast<int>(buf[19] << 24 | buf[20] << 16 | buf[21] << 8 | buf[22]);
   double voltage_R     = static_cast<int>(buf[23] << 24 | buf[24] << 16 | buf[25] << 8 | buf[26]) * 0.1;
 
@@ -214,7 +245,7 @@ void show_state(int fd) {
   double voltage_L     = static_cast<int>(buf[23 + OFFSET] << 24 | buf[24 + OFFSET] << 16 | buf[25 + OFFSET] << 8 | buf[26 + OFFSET]) * 0.1;
 
   double dist_L = position_L * STEP_RESOLUTION * 0.5*WHEEL_D / GEAR_RATIO;
-  double dist_R =-position_R * STEP_RESOLUTION * 0.5*WHEEL_D / GEAR_RATIO;
+  double dist_R = position_R * STEP_RESOLUTION * 0.5*WHEEL_D / GEAR_RATIO;
   double travel = (dist_L + dist_R)/2.0;
   double rotation = (dist_R - dist_L)/WHEEL_T;
 
@@ -271,11 +302,12 @@ void send_vw(int fd, double v, double w) {
 
 // Pythonモジュールを定義
 PYBIND11_MODULE(MotorDriver, m) {
-    m.def("init", &init, "initialize motor driver in C++");
-    m.def("turn_on_motors", &turn_on_motors, "turn on the motor in C++");
-    m.def("turn_off_motors", &turn_off_motors, "turn off the motor in C++");
-    m.def("free_motors", &free_motors, "free the motor in C++");
-    m.def("read_state", &read_state, "read status of the motor in C++");
-    m.def("show_state", &show_state, "show status of the motor in C++");
-    m.def("send_vw", &send_vw, "send v and w command to motors in C++");
+  m.def("init", &init, "initialize motor driver in C++");
+  m.def("turn_on_motors", &turn_on_motors, "turn on the motor in C++");
+  m.def("turn_off_motors", &turn_off_motors, "turn off the motor in C++");
+  m.def("free_motors", &free_motors, "free the motor in C++");
+  m.def("read_state", &read_state, "read status of the motor in C++");
+  m.def("show_state", &show_state, "show status of the motor in C++");
+  m.def("send_vw", &send_vw, "send v and w command to motors in C++");
+  m.def("read_odo2", &read_odo2, "read odometory in C++");
 }
