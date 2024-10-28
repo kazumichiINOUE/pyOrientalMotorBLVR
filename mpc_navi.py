@@ -31,6 +31,33 @@ import Odometory
 import Lidar
 
 import MotorDriver as md
+import MPC
+
+obstacles = [(3.0, 2)]
+x_ref_lists = [
+    casadi.DM([ 1.2, 0,  0]),
+    casadi.DM([ 1.2, 1.0,  np.pi/2]),
+    casadi.DM([ 0.0, 1.0,  np.pi]),
+    casadi.DM([ 0.0, 0.0,  0])
+]
+"""
+    ,
+    casadi.DM([ 3, 3,  np.pi/2]),
+    casadi.DM([ 0, 3,  np.pi*3/2]),
+    casadi.DM([ 0, 0,  0]),
+]
+"""
+#x_ref = casadi.DM([-3, 0,  np.pi/2])
+u_ref = casadi.DM([0, 0])
+K = 20
+T = 2
+dt = T/K
+current_time = 0
+
+x_init = casadi.DM([0, 0, 0])
+initial_velocity = casadi.DM([0.0, 0.0])
+X, U = [x_init], [initial_velocity]     # グラフにするための配列
+t_eval = [0]
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -141,12 +168,51 @@ try:
     while True:
         ts = int(time.time() * 1e3)
         odo.rx, odo.ry, odo.ra, odo.travel, odo.rotation = md.read_odo2(fd, odo.rx, odo.ry, odo.ra, odo.travel, odo.rotation)
-        print(odo.rx, odo.ry, odo.ra, odo.travel, odo.rotation)
-        #odo = qry.read_odo(ser, odo)
+        print(f"{odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.3f} {odo.rotation*180/math.pi:.1f}")
         #with open("enclog", "a") as file:
         #    file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
+        for x_ref in x_ref_lists:
+            # MPC Controller インスタンス作成
+            mpc = MPC.MPCController(x_ref, u_ref, K, T, obstacles = obstacles)
+            x0 = casadi.DM.zeros(mpc.total_vars)
+            x_current = x_init
+            prev_x = x_current
+            loop_count = 0
+            while True:
+                current_time += dt
+                if casadi.sqrt((x_ref[0] - x_current[0])**2 + (x_ref[1] - x_current[1])**2) < 0.2:
+                    x_init = x_current
+                    break
+                u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
+                md.send_vw(fd, u_opt[0], u_opt[1])
+                #time.sleep(dt)
+                odo.rx, odo.ry, odo.ra, odo.travel, odo.rotation = md.read_odo2(fd, odo.rx, odo.ry, odo.ra, odo.travel, odo.rotation)
+                print(x_ref, x_current)
+                print(f"{odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.3f} {odo.rotation*180/math.pi:.1f}")
+                x_current[0] = odo.rx
+                x_current[1] = odo.ry
+                x_current[2] = odo.ra
+                #x_current = mpc.I(x0=x_current, p=u_opt)["xf"]
+                #X.append(x_current)
+                #U.append(u_opt)
+                #t_eval.append(current_time)
+                if casadi.sumsqr(prev_x - x_current) < 1e16:
+                    loop_count += 1
+                    if loop_count > 200:
+                        loop_count = 0
+                        x_init = x_current
+                        break
+                prev_x = x_current
 
-        #print(f"{ts} {odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.1f} {az}")
+        # Terminate process
+        v = 0.0
+        w = 0.0
+        md.send_vw(fd, v, w)
+        time.sleep(2)
+        md.turn_off_motors(fd)
+        urg.close()
+        exit()
+        """
         # Get LiDAR data
         success, urg_data = urg.one_shot()
         x = []
@@ -225,6 +291,7 @@ try:
         md.send_vw(fd, v, w)
 
         pygame.time.wait(10)
+        """
 
     # Terminate process
     v = 0.0
