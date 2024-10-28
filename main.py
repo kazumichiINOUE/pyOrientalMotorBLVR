@@ -30,6 +30,8 @@ import SlamOnline
 import device_model
 import Odometory
 
+import MotorDriver as md
+
 # Include default configuration
 config = rc.read_config('config.lua')
 
@@ -86,8 +88,6 @@ class Urg:
             print("[False] II", file=sys.stderr)
             sys.exit(0)
 
-        # 通信テストを合格
-        print("Connect test all clear.")
 
     def one_shot(self):
         """
@@ -303,9 +303,7 @@ if joystick_count > 0:
 else:
     joystick = DummyJoystick.DummyJoystick()
 
-# Initialize Oriental motor BLV-R 
-SERIAL_PORT = "/dev/cu.usbserial-AQ034S3S"
-SERIAL_BAUDRATE = 230400    # BLV-R Default Setting
+'''
 try:
     ser = serial.Serial(
         port=SERIAL_PORT,
@@ -320,18 +318,15 @@ except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Serial Class.")
     ser = DummySerial.DummySerial()
+'''
 
 try:
-    # Send setup command to motor drivers
-    qry.simple_send_cmd(ser, qry.Query_IDshare_R);      print("send id share to R")
-    qry.simple_send_cmd(ser, qry.Query_IDshare_L);      print("send id share to L")
-    qry.simple_send_cmd(ser, qry.Query_READ_R);         print("send read R")
-    qry.simple_send_cmd(ser, qry.Query_READ_L);         print("send read L")
-    qry.simple_send_cmd(ser, qry.Query_WRITE_R);        print("send write R")
-    qry.simple_send_cmd(ser, qry.Query_WRITE_L);        print("send write L")
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_R);    print("servo on R")
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_ON_L);    print("servo on L")
-    
+    # Initialize Oriental motor BLV-R 
+    fd = md.init(config.motor.serial_port, config.motor.baudrate)
+    md.turn_on_motors(fd)
+    #md.free_motors(fd)
+    #md.turn_off_motors(fd)
+
     count = 0
     count_max = 200
     center_range = []
@@ -378,16 +373,15 @@ try:
             if res == "" or res == "n" or res == "N":
                 v = 0.0
                 w = 0.0
-                Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-                qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+                md.send_vw(fd, v, w)
+                #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+                #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
                 time.sleep(2)
                 
-                # turn off motor drivers
-                qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
-                qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+                md.turn_off_motors(fd)
                 
                 urg.close()
-                ser.close()
+                #ser.close()
                 sys.exit()
             elif res == "y" or res == "Y":
                 break
@@ -409,7 +403,7 @@ try:
     # Acc
     ###
     addrLis = [0x50]
-    device = device_model.DeviceModel("WTC1", "/dev/cu.usbserial-11320", 9600, addrLis, updateData)
+    device = device_model.DeviceModel("WTC1", "/dev/cu.usbserial-110", 9600, addrLis, updateData)
     device.openDevice()
     device.startLoopRead()
 
@@ -421,12 +415,12 @@ try:
     while True:
         ts = int(time.time() * 1e3)
         az = device.get_data(0x50, "AccZ")
-        odo = qry.read_odo(ser, odo)
-        if az != "None":
-            with open("enclog", "a") as file:
-                file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
+        #odo = qry.read_odo(ser, odo)
+        #if az != "None":
+        #    with open("enclog", "a") as file:
+        #        file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
 
-        print(f"{ts} {odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.1f} {az}")
+        #print(f"{ts} {odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.1f} {az}")
         # Get LiDAR data
         success, urg_data = urg.one_shot()
         x = []
@@ -477,7 +471,8 @@ try:
                         print(f"{p[1]:.3f} {p[2]:.3f} {p[3]*180/math.pi:.1f}")
                     break
                 elif event.button == NUM_JOY_GET_STATE:
-                    qry.read_state(ser)
+                    print(event.button)
+                    #qry.read_state(ser)
                     break
 
             # Get button state of joystick
@@ -508,24 +503,27 @@ try:
         elif button_pressed_shutdown: # Shutdown
             print("Pressed Stop button")
             break
-        Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-        qry.simple_send_cmd(ser, Query_NET_ID_WRITE);  # print(f"send v:{v}, w:{w} to LR")
+        md.send_vw(fd, v, w)
+        #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+        #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);  # print(f"send v:{v}, w:{w} to LR")
 
         pygame.time.wait(10)
 
     # Terminate process
     v = 0.0
     w = 0.0
-    Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-    qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+    md.send_vw(fd, v, w)
+    #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+    #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
     time.sleep(2)
     
     # turn off motor drivers
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+    md.turn_off_motors(fd)
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
     
     urg.close()
-    ser.close()
+    #ser.close()
 
 except KeyboardInterrupt:
     print("Pressed Ctrl + C")
@@ -533,27 +531,31 @@ except KeyboardInterrupt:
     # Ctrl+Cが押されたときに安全に終了する
     v = 0.0
     w = 0.0
-    Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-    qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+    md.send_vw(fd, v, w)
+    #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+    #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
     time.sleep(2)
     # turn off motor drivers
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+    md.turn_off_motors(fd)
     print("Closing serial connection.")
     urg.close()
-    ser.close()
+    #ser.close()
 
 except Exception as e:
     # その他のエラーが発生した場合
     print(f"An error occurred: {e}")
     v = 0.0
     w = 0.0
-    Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-    qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
+    md.send_vw(fd, v, w)
+    #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
+    #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
     time.sleep(2)
     # turn off motor drivers
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
-    qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
+    md.turn_off_motors(fd)
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_R);   print("servo off R")
+    #qry.simple_send_cmd(ser, qry.Query_Write_Servo_OFF_L);   print("servo off L")
     print("Closing serial connection.")
     urg.close()
-    ser.close()
+    #ser.close()

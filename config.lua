@@ -32,6 +32,8 @@ local config = {
   },
 
   motor = {
+    serial_port = "/dev/cu.usbserial-AQ034S3S",
+    baudrate    = 230400, -- BLV-R Default Setting
     debug_mode  = false,
     wheel_d = 0.314, -- 8inch
     wheel_t = 0.4274,

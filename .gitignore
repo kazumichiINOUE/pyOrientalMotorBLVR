@@ -3,3 +3,5 @@ __pycache__
 sample
 test*
 .DS_Store
+*.so
+result*
