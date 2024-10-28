@@ -333,11 +333,11 @@ def read_odo(ser, odo):
     travel   = (dist_L + dist_R) / 2.0
     rotation = (dist_R - dist_L) / WHEEL_T
 
-    dl = travel - odo.travel;
-    dth = rotation - odo.rotation;
-    odo.rx += dl * math.cos(odo.ra);
-    odo.ry += dl * math.sin(odo.ra);
-    odo.ra += dth;
+    odo.dl = travel - odo.travel;
+    odo.dth = rotation - odo.rotation;
+    odo.rx += odo.dl * math.cos(odo.ra);
+    odo.ry += odo.dl * math.sin(odo.ra);
+    odo.ra += odo.dth;
     if odo.ra > math.pi:
         odo.ra -= 2*math.pi;
     elif odo.ra < -math.pi:

@@ -27,8 +27,9 @@ import DummyJoystick
 import ReadConfig as rc
 from Colors import hex_to_rgb
 import SlamOnline
-import device_model
+import WTC
 import Odometory
+import Urg
 
 import MotorDriver as md
 
@@ -280,7 +281,7 @@ def updateData(DeviceModel):
 
 # Initialize LiDAR
 try:
-    urg = Urg(config.lidar.serial_port, config.lidar.baudrate)
+    urg = Urg.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
 except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Lidar Class.")
@@ -304,6 +305,11 @@ else:
     joystick = DummyJoystick.DummyJoystick()
 
 '''
+=======
+# Initialize Oriental motor BLV-R 
+SERIAL_PORT = config.motor.serial_port
+SERIAL_BAUDRATE = config.motor.baudrate
+>>>>>>> f5da58a5f4d828f5bfc2b5072660b6f04e158632
 try:
     ser = serial.Serial(
         port=SERIAL_PORT,
@@ -403,7 +409,8 @@ try:
     # Acc
     ###
     addrLis = [0x50]
-    device = device_model.DeviceModel("WTC1", "/dev/cu.usbserial-110", 9600, addrLis, updateData)
+    #device = device_model.DeviceModel("WTC1", "/dev/cu.usbserial-110", 9600, addrLis, updateData)
+    device = WTC.DeviceModel("WTC1", config.wtc.serial_port, config.wtc.baudrate, addrLis)
     device.openDevice()
     device.startLoopRead()
 
@@ -414,11 +421,16 @@ try:
     ########################################
     while True:
         ts = int(time.time() * 1e3)
-        az = device.get_data(0x50, "AccZ")
+        #az = device.get_data(0x50, "AccZ")
         #odo = qry.read_odo(ser, odo)
         #if az != "None":
         #    with open("enclog", "a") as file:
         #        file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
+        az = device.get(0x50, "AccZ")
+        odo = qry.read_odo(ser, odo)
+        if az != "None":
+            with open("enclog", "a") as file:
+                file.write(f"{ts} {odo.rx} {odo.ry} {odo.ra} {odo.travel} {az}\n")
 
         #print(f"{ts} {odo.rx:.3f} {odo.ry:.3f} {odo.ra*180/math.pi:.1f} {odo.travel:.1f} {az}")
         # Get LiDAR data
@@ -451,17 +463,17 @@ try:
                 sys.exit()
             if event.type == pygame.JOYBUTTONDOWN:
                 if event.button == NUM_JOY_GET_LIDAR:
-                    ts = 0
+                    ts = int(time.time() * 1e3)
                     if config.lidar.store_data:
                         with open(file_name, "a") as file:
                             data_size = 1081*3
-                            ts = int(time.time() * 1e3)
                             file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
                             for d in urg_data:
                                 file.write(f"{d[1]} 0 0 ")
                             file.write(f"{ts}\n")
                         print("Stored LiDAR data")
-                    slam.update(ts, urg_data)
+                    slam.update(ts, urg_data, odo)
+                    slam.store_log()
                     path = slam.get_path()
                     timestamp = int(time.time())
                     formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')

@@ -11,6 +11,7 @@ local config = {
     debug_mode  = false,
     store_data  = false,
     serial_port = '/dev/cu.usbmodem13301',
+    --serial_port = '/dev/cu.usbmodem113301',
     baudrate    = 115200,
     start_angle = -135.0,
     end_angle   =  135.0,
@@ -41,10 +42,15 @@ local config = {
     gear_ratio = 50.0,
   },
 
+  wtc = {
+	serial_port = '/dev/ttyUSB1',
+	baudrate = 9600,
+  },
+
   slam = {
     window_height = 1000,
-    window_width = 2000,
-    origin_x = 1000,
+    window_width = 1000,
+    origin_x = 500,
     origin_y = 500,
     csize = 0.025, --[m]
     scan_data_size = 1081,

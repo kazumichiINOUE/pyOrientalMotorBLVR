@@ -28,6 +28,12 @@ def gmap_show(map, width, height, path, waitTime = 0):
     cv2.imshow("slam", img_org)
     cv2.waitKey(waitTime)
 
+def gmap2img(map, width, height, path):
+    img_org = np.zeros((height, width, 3), dtype=np.uint8)
+    img_org[:] = hex_to_rgb('#e6e7ed')  # 背景色
+    img_org[map == 1] = hex_to_rgb('#33635c')
+    return img_org
+
 def transf(scan_px, scan_py, cx, cy, cs, sn):
     xd = scan_px * cs - scan_py * sn + cx
     yd = scan_px * sn + scan_py * cs + cy
@@ -68,7 +74,7 @@ class Slam:
     def get_path(self):
         return self.path
 
-    def update(self, ts, urg_data):
+    def update(self, ts, urg_data, odo):
         skip_data = config.slam.skip
         data_size = config.slam.scan_data_size
         start_angle = config.lidar.start_angle
@@ -87,14 +93,20 @@ class Slam:
 
             self.path.append([ts, self.current_x, self.current_y, self.current_a])
             return
-        
-        # 現在姿勢を中心とした探索窓をnp.meshgrid()で作成する
-        ddx = np.arange(-0.5 + self.current_x, 0.5 + self.current_x, self.csize)
-        ddy = np.arange(-0.5 + self.current_y, 0.5 + self.current_y, self.csize)
+    
+        # 現在姿勢 + odoを中心とした探索窓をnp.meshgrid()で作成する
+        ccx = odo.rx
+        ccy = odo.ry
+        print(f"ccx:{ccx:.3f} ccy:{ccy:.3f}")
+        ddx = np.arange(-0.5 + ccx, 0.5 + ccx, self.csize)
+        ddy = np.arange(-0.5 + ccy, 0.5 + ccy, self.csize)
+        #ddx = np.arange(-0.5 + self.current_x, 0.5 + self.current_x, self.csize)
+        #ddy = np.arange(-0.5 + self.current_y, 0.5 + self.current_y, self.csize)
         max_length = 15 # 回転方向を探索する際の1ピクセルを超えないことを保証する距離
                         # 長い方が処理時間は伸びる(delta_thが細かくなるため)
         delta_th = math.acos(1 - self.csize**2/max_length**2)
-        dth = np.arange(-math.pi/4 + self.current_a, math.pi/4 + self.current_a, delta_th)
+        dth = np.arange(-math.pi/4 + odo.ra, math.pi/4 + odo.ra, delta_th)
+        #dth = np.arange(-math.pi/4 + self.current_a + odo.dth, math.pi/4 + self.current_a + odo.dth, delta_th)
         cx, cy, ca = np.meshgrid(ddx, ddy, dth)
         cs = np.cos(ca)
         sn = np.sin(ca)
@@ -108,9 +120,20 @@ class Slam:
         
         best_index = np.unravel_index(np.argmax(eval_matrix), eval_matrix.shape)
         self.current_x, self.current_y, self.current_a = cx[best_index], cy[best_index], ca[best_index]
+        odo.rx = self.current_x
+        odo.ry = self.current_y
+        odo.ra = self.current_a
         
         self.gmap = update_map(self.gmap, self.scan_px, self.scan_py, self.current_x, self.current_y, self.current_a, self.width, self.height, self.ox, self.oy, self.csize)
         self.path.append([ts, self.current_x, self.current_y, self.current_a])
         #print(f"{current_x:.3f} {current_y:.3f} {current_a*180/pi:.1f}")
         gmap_show(self.gmap, self.width, self.height, self.path, 10)
         self.count += 1
+
+    def store_log(self):
+        img = gmap2img(self.gmap, self.width, self.height, self.path)
+        cv2.imwrite("resutl.png", img)
+        with open("path.log", "w") as file:
+            for p in self.path:
+                file.write(f"{p[0]} {p[1]} {p[2]} {p[3]}\n")
+
