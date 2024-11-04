@@ -159,8 +159,6 @@ try:
             iy =int(-py / csize + height//2)
             if ix >= 0 and ix < width and iy >= 0 and iy < height:
                 cv2.rectangle(img, (ix-2, iy-2), (ix+2, iy+2), hex_to_rgb(config.map.color.point), -1)
-        cv2.imshow("LiDAR", img)
-        cv2.waitKey(5)
 
         # Get joystick status
         for event in pygame.event.get():
@@ -221,7 +219,7 @@ try:
             robot_a = 0.0
 
         # Get control command from MPC
-        x_ref = casadi.DM([ target_r*cos(target_a), target_r*sin(target_a),  robot_a])
+        x_ref = casadi.DM([target_r*cos(target_a), target_r*sin(target_a),  robot_a])
         u_ref = casadi.DM([0, 0])
         K = 20
         T = 1
@@ -231,6 +229,12 @@ try:
         x_current = x_init
         u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
         md.send_vw(fd, u_opt[0], u_opt[1])
+
+        tx =  int(-x_ref[1, 0]/csize) + width//2
+        ty = -int( x_ref[0, 0]/csize) + height//2
+        cv2.circle(img, (tx, ty), int(1/config.map.csize/2), hex_to_rgb(config.map.color.target), 3)
+        cv2.imshow("LiDAR", img)
+        cv2.waitKey(5)
 
         pygame.time.wait(10)
 
