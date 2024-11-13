@@ -133,11 +133,26 @@ try:
     NUM_JOY_TURN_RIGHT = 3
     NUM_JOY_SHUTDOWN   = 10
 
+    H_normalized = np.loadtxt("./Hmatrix.txt")
+    H_inv = np.linalg.inv(H_normalized)
+    H_inv = H_inv/H_inv[2][2]
+    ## 中心(1500, 0)の半径500の円上の点のリスト
+    point_on_circle = [(1500 + 500 * math.cos(i * math.pi / 180), -500 + 500 * math.sin(i * math.pi / 180)) for i in range(360)]
+    cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     ########################################
     # Main loop start
     ########################################
     while True:
         ts = int(time.time() * 1e3)
+
+        ret, frame = cap.read()
+        for tx, ty in point_on_circle:
+            p1 = np.array([tx, ty, 1])
+            p_origin = np.dot(H_inv, p1)
+            p_origin = p_origin/p_origin[2]
+            cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 10, (0, 0, 255), -1)
+        cv2.imshow('Capture image', frame)
+
         # Get LiDAR data
         success, urg_data = urg.one_shot()
         x = []
