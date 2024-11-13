@@ -105,7 +105,9 @@ try:
             pass
     elif config.lidar.store_data == False:
         while True:
-            res = input("LiDARデータは保存されません．本当に良いですか？ [y/N]")
+            print("LiDARデータは保存されません")
+            res = "y"
+            #res = input("LiDARデータは保存されません．本当に良いですか？ [y/N]")
             if res == "" or res == "n" or res == "N":
                 v = 0.0
                 w = 0.0
@@ -137,7 +139,9 @@ try:
     H_inv = np.linalg.inv(H_normalized)
     H_inv = H_inv/H_inv[2][2]
     ## 中心(1500, 0)の半径500の円上の点のリスト
-    point_on_circle = [(1500 + 500 * math.cos(i * math.pi / 180), -500 + 500 * math.sin(i * math.pi / 180)) for i in range(360)]
+    center_x = 0
+    center_y = 0
+    point_on_circle = [(center_x + 50 * math.cos(i * math.pi / 180), center_y + 50 * math.sin(i * math.pi / 180)) for i in range(360)]
     cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     ########################################
     # Main loop start
@@ -146,11 +150,12 @@ try:
         ts = int(time.time() * 1e3)
 
         ret, frame = cap.read()
+        point_on_circle = [(center_x + 50 * math.cos(i * math.pi / 180), center_y + 50 * math.sin(i * math.pi / 180)) for i in range(360)]
         for tx, ty in point_on_circle:
             p1 = np.array([tx, ty, 1])
             p_origin = np.dot(H_inv, p1)
             p_origin = p_origin/p_origin[2]
-            cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 10, (0, 0, 255), -1)
+            cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 2, (0, 0, 255), -1)
         cv2.imshow('Capture image', frame)
 
         # Get LiDAR data
@@ -208,21 +213,25 @@ try:
             target_r = 1.0
             target_a = math.pi/2
             robot_a = math.pi/2
+            center_y += 100
             #print("0ボタンが押されています")
         elif button_pressed_go_forward: # Go forward
             target_r = 1.0
             target_a = 0.0
             robot_a = 0.0
+            center_x += 100
             #print("1ボタンが押されています")
         elif button_pressed_go_back: # Go back
             target_r = 1.0
             target_a = math.pi
             robot_a = 0.0
+            center_x -= 100
             #print("2ボタンが押されています")
         elif button_pressed_turn_right: # Turn Right
             target_r = 1.0
             target_a = -math.pi/2
             robot_a = -math.pi/2
+            center_y -= 100
             #print("3ボタンが押されています")
         elif button_pressed_shutdown: # Shutdown
             print("Pressed Stop button")
@@ -243,11 +252,14 @@ try:
         x0 = casadi.DM.zeros(mpc.total_vars)
         x_current = x_init
         u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
-        md.send_vw(fd, u_opt[0], u_opt[1])
+        #md.send_vw(fd, u_opt[0], u_opt[1])
 
         tx =  int(-x_ref[1, 0]/csize) + width//2
         ty = -int( x_ref[0, 0]/csize) + height//2
+        cx =  int(-center_y/1000/csize) + width//2
+        cy = -int( center_x/1000/csize) + height//2
         cv2.circle(img, (tx, ty), int(1/config.map.csize/2), hex_to_rgb(config.map.color.target), 3)
+        cv2.circle(img, (cx, cy), 50, (0, 0, 255), 1)
         cv2.imshow("LiDAR", img)
         cv2.waitKey(5)
 
