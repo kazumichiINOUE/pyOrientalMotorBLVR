@@ -77,18 +77,18 @@ def draw_lidar_on_img(img_org, urg_data, cs, sn):
         img[y-2:y+3, x-2:x+3] = color  # 矩形領域を一括で塗りつぶす
     return img
 
-def make_img_org(height, width, config.map.color.bg, config.map.color.axis, csize):
+def make_img_org(height, width, color_bg, color_axis, csize):
     img_org = np.zeros((height, width, 3), dtype=np.uint8)
-    img_org[:] = hex_to_rgb(config.map.color.bg)
-    cv2.line(img_org, (0, height//2), (width, height//2), hex_to_rgb(config.map.color.axis), 1)
-    cv2.line(img_org, (width//2, 0),  (width//2, height), hex_to_rgb(config.map.color.axis), 1)
+    img_org[:] = hex_to_rgb(color_bg)
+    cv2.line(img_org, (0, height//2), (width, height//2), hex_to_rgb(color_axis), 1)
+    cv2.line(img_org, (width//2, 0),  (width//2, height), hex_to_rgb(color_axis), 1)
     ticks = np.arange(-width/2*csize, width/2*csize + 0.5, 1)
     for i in ticks:
         if i == 0:
             continue
         tick_x = int(i / csize)
-        cv2.line(img_org, (width//2 - tick_x, height//2-10), (width//2 - tick_x, height//2 + 10), hex_to_rgb(config.map.color.axis), 1)
-        cv2.line(img_org, (width//2 -10, height//2 - tick_x), (width//2 + 10, height//2- tick_x), hex_to_rgb(config.map.color.axis), 1)
+        cv2.line(img_org, (width//2 - tick_x, height//2-10), (width//2 - tick_x, height//2 + 10), hex_to_rgb(color_axis), 1)
+        cv2.line(img_org, (width//2 -10, height//2 - tick_x), (width//2 + 10, height//2- tick_x), hex_to_rgb(color_axis), 1)
     return img_org
 
 try:
