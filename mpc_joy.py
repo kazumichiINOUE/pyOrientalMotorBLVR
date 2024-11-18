@@ -61,6 +61,22 @@ if joystick_count > 0:
 else:
     joystick = DummyJoystick.DummyJoystick()
 
+def draw_lidar_on_img(img_org, urg_data):
+    d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
+    xd = d_values * cs / 1000  # X座標変換
+    yd = d_values * sn / 1000  # Y座標変換
+    ix = (-yd / csize + width // 2).astype(int)
+    iy = (-xd / csize + height // 2).astype(int)
+    # 範囲内の座標をフィルタリング
+    valid_mask = (ix >= 0) & (ix < width) & (iy >= 0) & (iy < height)
+    ix = ix[valid_mask]
+    iy = iy[valid_mask]
+    # 描画
+    img = copy.deepcopy(img_org)
+    for x, y in zip(ix, iy):
+        img[y-2:y+3, x-2:x+3] = color  # 矩形領域を一括で塗りつぶす
+    return img
+
 try:
     # Initialize Oriental motor BLV-R 
     fd = md.init(config.motor.serial_port, config.motor.baudrate)
@@ -146,6 +162,8 @@ try:
     # LiDAR変換用にcos, sin のリストを作る
     cs = [cos((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
     sn = [sin((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
+    # 色をNumPyで表現
+    color = np.array(hex_to_rgb(config.map.color.point), dtype=np.uint8)
     ########################################
     # Main loop start
     ########################################
@@ -161,30 +179,10 @@ try:
             cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 2, (0, 0, 255), -1)
         cv2.imshow('Capture image', frame)
 
-        # Get LiDAR data
+        # Get & Show LiDAR data
         success, urg_data = urg.one_shot()
-        x = []
-        y = []
-        for index, d in enumerate(urg_data):
-            #angle = (index * step_angle + start_angle) * pi/180
-            #xd = d[1] * cos(angle) / 1000
-            #yd = d[1] * sin(angle) / 1000
-            xd = d[1] * cs[index] / 1000
-            yd = d[1] * sn[index] / 1000
-
-            x.append(xd)
-            y.append(yd)
-
-        # Show LiDAR data
-        img = copy.deepcopy(img_org)
-        for px, py in zip(x, y):
-            tmp_px = -py
-            py = px
-            px = tmp_px
-            ix =int( px / csize + width//2)
-            iy =int(-py / csize + height//2)
-            if ix >= 0 and ix < width and iy >= 0 and iy < height:
-                cv2.rectangle(img, (ix-2, iy-2), (ix+2, iy+2), hex_to_rgb(config.map.color.point), -1)
+        if success:
+            img = draw_lidar_on_img(img_org, urg_data)
 
         # Get joystick status
         for event in pygame.event.get():
