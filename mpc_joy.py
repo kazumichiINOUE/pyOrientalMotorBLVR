@@ -143,6 +143,9 @@ try:
     center_y = 0
     point_on_circle = [(center_x + 50 * math.cos(i * math.pi / 180), center_y + 50 * math.sin(i * math.pi / 180)) for i in range(360)]
     cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
+    # LiDAR変換用にcos, sin のリストを作る
+    cs = [cos((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
+    sn = [sin((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
     ########################################
     # Main loop start
     ########################################
@@ -163,9 +166,12 @@ try:
         x = []
         y = []
         for index, d in enumerate(urg_data):
-            angle = (index * step_angle + start_angle) * pi/180
-            xd = d[1] * cos(angle) / 1000
-            yd = d[1] * sin(angle) / 1000
+            #angle = (index * step_angle + start_angle) * pi/180
+            #xd = d[1] * cos(angle) / 1000
+            #yd = d[1] * sin(angle) / 1000
+            xd = d[1] * cs[index] / 1000
+            yd = d[1] * sn[index] / 1000
+
             x.append(xd)
             y.append(yd)
 
