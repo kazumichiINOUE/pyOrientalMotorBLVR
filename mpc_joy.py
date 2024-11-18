@@ -91,6 +91,16 @@ def make_img_org(height, width, color_bg, color_axis, csize):
         cv2.line(img_org, (width//2 -10, height//2 - tick_x), (width//2 + 10, height//2- tick_x), hex_to_rgb(color_axis), 1)
     return img_org
 
+def cleanup(fd, urg, md, v=0.0, w=0.0):
+    print("Performing cleanup...")
+    # 停止速度を送信
+    md.send_vw(fd, v, w)
+    time.sleep(2)
+    # モータードライバをオフにする
+    md.turn_off_motors(fd)
+    print("Closing serial connection.")
+    urg.close()
+
 try:
     # Initialize Oriental motor BLV-R 
     fd = md.init(config.motor.serial_port, config.motor.baudrate)
@@ -286,24 +296,8 @@ try:
 except KeyboardInterrupt:
     print("Pressed Ctrl + C")
     print("Shutting down now...")
-    # Ctrl+Cが押されたときに安全に終了する
-    v = 0.0
-    w = 0.0
-    md.send_vw(fd, v, w)
-    time.sleep(2)
-    # turn off motor drivers
-    md.turn_off_motors(fd)
-    print("Closing serial connection.")
-    urg.close()
+    cleanup(fd, urg, md)
 
 except Exception as e:
-    # その他のエラーが発生した場合
     print(f"An error occurred: {e}")
-    v = 0.0
-    w = 0.0
-    md.send_vw(fd, v, w)
-    time.sleep(2)
-    # turn off motor drivers
-    md.turn_off_motors(fd)
-    print("Closing serial connection.")
-    urg.close()
+    cleanup(fd, urg, md)
