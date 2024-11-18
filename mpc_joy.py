@@ -141,7 +141,7 @@ try:
     ## 中心(1500, 0)の半径500の円上の点のリスト
     center_x = 0
     center_y = 0
-    point_on_circle = [(center_x + 50 * math.cos(i * math.pi / 180), center_y + 50 * math.sin(i * math.pi / 180)) for i in range(360)]
+    point_on_circle = [(center_x + 50 * cos(i * pi / 180), center_y + 50 * sin(i * pi / 180)) for i in range(360)]
     cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     # LiDAR変換用にcos, sin のリストを作る
     cs = [cos((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
@@ -153,7 +153,7 @@ try:
         ts = int(time.time() * 1e3)
 
         ret, frame = cap.read()
-        point_on_circle = [(center_x + 50 * math.cos(i * math.pi / 180), center_y + 50 * math.sin(i * math.pi / 180)) for i in range(360)]
+        point_on_circle = [(center_x + 50 * cos(i * pi / 180), center_y + 50 * sin(i * pi / 180)) for i in range(360)]
         for tx, ty in point_on_circle:
             p1 = np.array([tx, ty, 1])
             p_origin = np.dot(H_inv, p1)
@@ -217,8 +217,8 @@ try:
 
         if button_pressed_turn_left: # Turn Left
             target_r = 1.0
-            target_a = math.pi/2
-            robot_a = math.pi/2
+            target_a = pi/2
+            robot_a = pi/2
             center_y += 100
             #print("0ボタンが押されています")
         elif button_pressed_go_forward: # Go forward
@@ -229,14 +229,14 @@ try:
             #print("1ボタンが押されています")
         elif button_pressed_go_back: # Go back
             target_r = 1.0
-            target_a = math.pi
+            target_a = pi
             robot_a = 0.0
             center_x -= 100
             #print("2ボタンが押されています")
         elif button_pressed_turn_right: # Turn Right
             target_r = 1.0
-            target_a = -math.pi/2
-            robot_a = -math.pi/2
+            target_a = -pi/2
+            robot_a = -pi/2
             center_y -= 100
             #print("3ボタンが押されています")
         elif button_pressed_shutdown: # Shutdown
