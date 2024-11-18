@@ -61,7 +61,7 @@ if joystick_count > 0:
 else:
     joystick = DummyJoystick.DummyJoystick()
 
-def draw_lidar_on_img(img_org, urg_data):
+def draw_lidar_on_img(img_org, urg_data, cs, sn):
     d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
     xd = d_values * cs / 1000  # X座標変換
     yd = d_values * sn / 1000  # Y座標変換
@@ -83,7 +83,6 @@ try:
     md.turn_on_motors(fd)
     #md.free_motors(fd)
     #md.turn_off_motors(fd)
-
 
     start_angle = config.lidar.start_angle
     end_angle   = config.lidar.end_angle
@@ -182,7 +181,7 @@ try:
         # Get & Show LiDAR data
         success, urg_data = urg.one_shot()
         if success:
-            img = draw_lidar_on_img(img_org, urg_data)
+            img = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
         # Get joystick status
         for event in pygame.event.get():
