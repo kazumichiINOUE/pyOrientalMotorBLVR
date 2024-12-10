@@ -47,12 +47,10 @@ except serial.SerialException as e:
 # Initialize pygame & joypad
 pygame.init()
 pygame.joystick.init()
-
 # 接続されているジョイスティックの数を確認
 joystick_count = pygame.joystick.get_count()
 if joystick_count == 0:
     print("ジョイスティックが接続されていません")
-
 # 最初のジョイスティックを取得
 if joystick_count > 0:
     joystick = pygame.joystick.Joystick(0)
@@ -108,7 +106,7 @@ odo_travel = 0
 odo_rotation = 0
 
 stop_thread = False
-def access_fd(fd):
+def blv_odometory_fd(fd):
     global ox, oy, oa, odo_travel, odo_rotation
     while not stop_thread:
         ox, oy, oa, odo_travel, odo_rotation = md.read_odo2(fd, ox, oy, oa, odo_travel, odo_rotation)
@@ -120,8 +118,8 @@ try:
     fd = md.init(config.motor.serial_port, config.motor.baudrate)
 
     # fd に対してアクセスをする別の並列スレッドを立ち上げる
-    access_thread = threading.Thread(target=access_fd, args=(fd,))
-    access_thread.start()
+    blv_odometory_thread = threading.Thread(target=blv_odometory_fd, args=(fd,))
+    blv_odometory_thread.start()
 
     md.turn_on_motors(fd)
     #md.free_motors(fd)
@@ -311,7 +309,7 @@ try:
         elif button_pressed_shutdown: # Shutdown
             print("Pressed Stop button")
             stop_thread = True
-            access_thread.join()
+            blv_odometory_thread.join()
             break
         elif button_pressed_mapping:
             print("Mapを更新します")
@@ -376,7 +374,7 @@ except Exception as e:
 finally:
     print("Cleanup")
     stop_thread = True
-    access_thread.join()
+    blv_odometory_thread.join()
     cleanup(fd, urg, md)
     cv2.destroyAllWindows()
     cap.release()
