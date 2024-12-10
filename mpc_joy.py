@@ -22,7 +22,6 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 # My modules
-import Query as qry
 import DummySerial
 import DummyLidar
 import DummyJoystick
@@ -163,8 +162,6 @@ try:
                 v = 0.0
                 w = 0.0
                 md.send_vw(fd, v, w)
-                #Query_NET_ID_WRITE = qry.calc_vw2hex(v, w)
-                #qry.simple_send_cmd(ser, Query_NET_ID_WRITE);   print(f"send v:{v}, w:{w} to LR")
                 time.sleep(2)
                 
                 md.turn_off_motors(fd)
@@ -277,7 +274,6 @@ try:
                     break
                 elif event.button == NUM_JOY_GET_STATE:
                     print(event.button)
-                    #qry.read_state(ser)
                     break
 
             # Get button state of joystick
