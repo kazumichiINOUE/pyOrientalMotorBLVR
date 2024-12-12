@@ -104,14 +104,32 @@ oy = 0
 oa = 0
 odo_travel = 0
 odo_rotation = 0
+urg_data = []
 
 stop_thread = False
 def blv_odometory_fd(fd):
     global ox, oy, oa, odo_travel, odo_rotation
-    while not stop_thread:
-        ox, oy, oa, odo_travel, odo_rotation = md.read_odo2(fd, ox, oy, oa, odo_travel, odo_rotation)
-        #print(f"Odo: x={ox:.2f}, y={oy:.2f}, a={oa:.2f}, travel={odo_travel:.2f}, rotation={odo_rotation:.2f}")
-        time.sleep(0.01)
+    file_name = "enclog"
+    with open(file_name, "w") as file:
+        while not stop_thread:
+            ts = int(time.time() * 1e3)
+            ox, oy, oa, odo_travel, odo_rotation = md.read_odo2(fd, ox, oy, oa, odo_travel, odo_rotation)
+            #print(f"Odo: x={ox:.2f}, y={oy:.2f}, a={oa:.2f}, travel={odo_travel:.2f}, rotation={odo_rotation:.2f}")
+            file.write(f"{ts} {ox} {oy} {oa} end\n")
+            time.sleep(0.01)
+
+def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size):
+    global urg_data
+    file_name = "urglog"
+    data_size = 1081*3
+    with open(file_name, "w") as file:
+        while not stop_thread:
+            success, urg_data = urg.one_shot()
+            ts = int(time.time() * 1e3)
+            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+            for d in urg_data:
+                file.write(f"{d[1]} 0 0 ")
+            file.write(f"{ts}\n")
 
 try:
     # Initialize Oriental motor BLV-R 
@@ -129,6 +147,8 @@ try:
     end_angle   = config.lidar.end_angle
     step_angle  = config.lidar.step_angle
     echo_size   = config.lidar.echo_size
+    lidar_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg, start_angle, end_angle, step_angle, echo_size,))
+    lidar_measurement_thread.start()
 
     height = config.map.window_height
     width = config.map.window_width
@@ -191,8 +211,8 @@ try:
     point_on_circle = [(center_x + 50 * cos(i * pi / 180), center_y + 50 * sin(i * pi / 180)) for i in range(360)]
     cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     # LiDAR変換用にcos, sin のリストを作る
-    cs = [cos((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
-    sn = [sin((i * 0.25 - 135.0)*pi/180) for i in range(1081)]
+    cs = [cos((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    sn = [sin((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
     # 色をNumPyで表現
     color = np.array(hex_to_rgb(config.map.color.point), dtype=np.uint8)
     # 現在地図上での自己位置
@@ -200,9 +220,9 @@ try:
     ry = 0
     ra = 0
     # 最初の地図は強制的に登録する
-    success, urg_data = urg.one_shot()
-    if success:
-        map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
+    #success, urg_data = urg.one_shot()
+    #if success:
+    map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
     ########################################
     # Main loop start
@@ -211,9 +231,9 @@ try:
         ts = int(time.time() * 1e3)
 
         # Get & Show LiDAR data
-        success, urg_data = urg.one_shot()
-        if success:
-            img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
+        #success, urg_data = urg.one_shot()
+        #if success:
+        img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
         # 現在地図を用いて自己位置推定
         # d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
         """
@@ -310,6 +330,7 @@ try:
             print("Pressed Stop button")
             stop_thread = True
             blv_odometory_thread.join()
+            lidar_measurement_thread.join()
             break
         elif button_pressed_mapping:
             print("Mapを更新します")
@@ -375,6 +396,7 @@ finally:
     print("Cleanup")
     stop_thread = True
     blv_odometory_thread.join()
+    lidar_measurement_thread.join()
     cleanup(fd, urg, md)
     cv2.destroyAllWindows()
     cap.release()
