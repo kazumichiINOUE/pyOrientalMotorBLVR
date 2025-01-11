@@ -15,16 +15,16 @@ import copy
 import numpy as np
 import casadi       # モデル予測制御
 import traceback    # エラーメッセージ情報取得
-import threading
+import threading    # マルチスレッド
 
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 # My modules
-import DummySerial
-import DummyLidar
-import DummyJoystick
+import DummySerial      # 接続に失敗した時のためのダミー
+import DummyLidar       # Ditto
+import DummyJoystick    # Ditto
 import ReadConfig as rc
 from Colors import hex_to_rgb
 import Odometory
@@ -38,7 +38,9 @@ config = rc.read_config('config.lua')
 
 # Initialize LiDAR
 try:
-    urg = Lidar.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
+    urg   = Lidar.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
+    urg_m = Lidar.Urg(config.lidar_m.serial_port, config.lidar_m.baudrate, config)
+    urg_b = Lidar.Urg(config.lidar_b.serial_port, config.lidar_b.baudrate, config)
 except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Lidar Class.")
@@ -98,6 +100,8 @@ def cleanup(fd, urg, md, v=0.0, w=0.0):
     md.turn_off_motors(fd)
     print("Closing serial connection.")
     urg.close()
+    urg_m.close()
+    urg_b.close()
 
 ox = 0
 oy = 0
@@ -105,6 +109,8 @@ oa = 0
 odo_travel = 0
 odo_rotation = 0
 urg_data = []
+urg_m_data = []
+urg_b_data = []
 
 stop_thread = False
 def blv_odometory_fd(fd):
@@ -118,17 +124,27 @@ def blv_odometory_fd(fd):
             file.write(f"{ts} {ox} {oy} {oa} end\n")
             time.sleep(0.01)
 
-def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size):
-    global urg_data
-    file_name = "urglog"
-    data_size = 1081*3
+def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fname):
+    global urg_data, urg_m_data, urg_b_data
+    file_name = fname
+    data_size = 1081*4
     with open(file_name, "w") as file:
         while not stop_thread:
-            success, urg_data = urg.one_shot()
             ts = int(time.time() * 1e3)
             file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
-            for d in urg_data:
-                file.write(f"{d[1]} 0 0 ")
+            if fname == "urglog":
+                success, urg_data = urg.one_shot_intensity()
+                for d in urg_data:
+                    file.write(f"{d[1]} 0 0 {d[2]} ")
+            elif fname == "urglog_m":
+                success, urg_m_data = urg.one_shot_intensity()
+                for d in urg_m_data:
+                    file.write(f"{d[1]} 0 0 {d[2]} ")
+            elif fname == "urglog_b":
+                success, urg_b_data = urg.one_shot_intensity()
+                for d in urg_b_data:
+                    file.write(f"{d[1]} 0 0 {d[2]} ")
+
             file.write(f"{ts}\n")
 
 try:
@@ -147,8 +163,12 @@ try:
     end_angle   = config.lidar.end_angle
     step_angle  = config.lidar.step_angle
     echo_size   = config.lidar.echo_size
-    lidar_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg, start_angle, end_angle, step_angle, echo_size,))
+    lidar_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg, start_angle, end_angle, step_angle, echo_size, "urglog",))
     lidar_measurement_thread.start()
+    lidar_m_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_m, start_angle, end_angle, step_angle, echo_size, "urglog_m",))
+    lidar_m_measurement_thread.start()
+    lidar_b_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_b, start_angle, end_angle, step_angle, echo_size, "urglog_b",))
+    lidar_b_measurement_thread.start()
 
     height = config.map.window_height
     width = config.map.window_width
@@ -185,6 +205,8 @@ try:
                 md.turn_off_motors(fd)
                 
                 urg.close()
+                urg_m.close()
+                urg_b.close()
                 #ser.close()
                 sys.exit()
             elif res == "y" or res == "Y":
@@ -331,6 +353,8 @@ try:
             stop_thread = True
             blv_odometory_thread.join()
             lidar_measurement_thread.join()
+            lidar_m_measurement_thread.join()
+            lidar_b_measurement_thread.join()
             break
         elif button_pressed_mapping:
             print("Mapを更新します")
@@ -397,6 +421,8 @@ finally:
     stop_thread = True
     blv_odometory_thread.join()
     lidar_measurement_thread.join()
+    lidar_m_measurement_thread.join()
+    lidar_b_measurement_thread.join()
     cleanup(fd, urg, md)
     cv2.destroyAllWindows()
     cap.release()

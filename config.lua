@@ -9,15 +9,25 @@ local config = {
 
   lidar = {
     debug_mode  = false,
-    store_data  = false,
-    serial_port = '/dev/cu.usbmodem14401', -- Top
+    store_data  = true,
+    serial_port = '/dev/cu.usbmodem14401', -- top
     --serial_port = '/dev/cu.usbmodem13301', -- middle
-    --serial_port = '/dev/cu.usbmodem113301',
+    --serial_port = '/dev/cu.usbmodem14201', -- bottom
     baudrate    = 115200,
     start_angle = -135.0,
     end_angle   =  135.0,
     step_angle  = 0.25,
     echo_size   = 3,
+  },
+
+  lidar_m = {
+    serial_port = '/dev/cu.usbmodem13301', -- middle
+    baudrate    = 115200,
+  },
+
+  lidar_b = {
+    serial_port = '/dev/cu.usbmodem14201', -- bottom
+    baudrate    = 115200,
   },
 
   map = {

@@ -106,9 +106,9 @@ class Urg:
                     # check_sum = p[-1]
                     body = p[:-1]
                     data_strings += body
-            print(f"data_length:{len(data_strings)}")
-            print(data_strings)
-            print("===")
+            #print(f"data_length:{len(data_strings)}")
+            #print(data_strings)
+            #print("===")
             for i in range(0, len(data_strings), 6):
                 three_chars_r = data_strings[i+0:i+3]
                 three_chars_i = data_strings[i+3:i+6]
@@ -132,7 +132,7 @@ class Urg:
                 if all(c in '01' for c in combined_binary_24bit_r) or all(c in '01' for c in combined_binary_24bit_i):
                     r = int(combined_binary_24bit_r, 2)
                     intensity = int(combined_binary_24bit_i, 2)
-                    index = int(i/3.0)
+                    index = i//6
                     urg_data.append((index, r, intensity))
                 else:
                     print("不正なデータが含まれています")
