@@ -13,3 +13,4 @@ urglog*
 *.txt
 data_*
 *.g2o
+mapInfo.lua
