@@ -10,3 +10,5 @@ path.log
 result.png
 urglog*
 *.mp4
+*.txt
+data_*
