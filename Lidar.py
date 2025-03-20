@@ -1,5 +1,7 @@
 import serial
 import time
+import sys
+from math import pi
 
 class Urg:
     """
@@ -131,7 +133,11 @@ class Urg:
                 combined_binary_24bit_i = ''.join(binary_i)
                 if all(c in '01' for c in combined_binary_24bit_r) or all(c in '01' for c in combined_binary_24bit_i):
                     r = int(combined_binary_24bit_r, 2)
-                    intensity = int(combined_binary_24bit_i, 2)
+                    try:
+                        intensity = int(combined_binary_24bit_i, 2)
+                    except ValueError:
+                        print(f"変換エラー: '{combined_binary_24bit_i}' は2進数として無効です。")
+                        intensity = 0  # デフォルト値を設定（適宜変更）
                     index = i//6
                     urg_data.append((index, r, intensity))
                 else:
@@ -242,4 +248,3 @@ def angle2index(angle):
 
 def deg2rad(deg):
     return deg * pi/180.0
-
