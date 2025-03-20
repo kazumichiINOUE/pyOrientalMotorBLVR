@@ -3,6 +3,7 @@ import cv2
 import math
 from scipy.optimize import differential_evolution, minimize
 from scipy.ndimage import generic_filter
+from scipy.ndimage import convolve
 
 import time
 import copy
@@ -25,7 +26,7 @@ def load_enclog(filepath):
 def load_urglog(filepath):
     data = []
     with open(filepath, 'r') as file:
-        for line in file:
+        for count, line in enumerate(file):
             parts = line.strip().split(' ')
             if len(parts) < 6:
                 continue  # 必要なデータがない行はスキップ
@@ -35,28 +36,35 @@ def load_urglog(filepath):
             start_angle = float(parts[3])  # スタート角度r
             end_angle = float(parts[4])  # 終了角度
             angle_step = float(parts[5])  # 角度ステップ
-            #ranges = [float(parts[7 + i]) for i in range(0, data_count, 4)]  # 3つごとに有効データを取得
+            #try:
+            #    ranges = [float(parts[7 + i]) for i in range(0, data_count, 4)]  # 3つごとに有効データを取得
+            #except:
+            #    print(parts)
+            #    exit(0)
             ranges, intensity = zip(*[(float(parts[7 + i]), float(parts[7 + i + 3])) for i in range(0, data_count, 4)])
-            data.append((timestamp, start_angle, end_angle, angle_step, ranges, intensity))
+            #intensity = [1 for _ in range(1081)] 
+            if count % 5 == 0:
+                data.append((timestamp, start_angle, end_angle, angle_step, ranges, intensity))
     return data
 
 def convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose):
-    urg_shift_x = 0.42
+    urg_shift_x = 0.165
     x, y, theta = robot_pose
 
     # ベクトル化とフィルタリング
     ranges = np.array(ranges)
     intensity = np.array(intensity)
     angles = np.radians(np.arange(start_angle, end_angle + angle_step, angle_step))
-    valid_mask = (ranges > 300) & (ranges < 30000)
+    valid_mask = (ranges > 300) & (ranges < 50000)
     ranges = ranges[valid_mask]
     intensity = intensity[valid_mask]
     angles = angles[valid_mask]
 
     # 位置計算のベクトル化
+    ranges /= 1000
     cos_theta, sin_theta = np.cos(theta), np.sin(theta)
-    lx = ranges * np.cos(angles) / 1000 + urg_shift_x
-    ly = ranges * np.sin(angles) / 1000
+    lx = ranges * np.cos(angles) + urg_shift_x
+    ly = ranges * np.sin(angles) 
     gx = x + lx * cos_theta - ly * sin_theta
     gy = y + lx * sin_theta + ly * cos_theta
 
@@ -171,15 +179,18 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         relative_poses.append(relative_pose)
         prev_enc = enc
 
-    robot_poses = [[0, 0, 0]]
+    robot_poses = [[0, 0, 0, 0]]
     pu = 0.0
     pv = 0.0
     pa = 0.0
     for i in range(len(urglog_data)):
         urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data[i]
+        if len(ranges) != 1081: 
+            print(f"skip data: {urg_timestamp} {i}")
+            continue
         if i >= len(relative_poses): break
         enc_timestamp, u, v, a = relative_poses[i]
-        rx, ry, ra = robot_poses[-1]
+        _, rx, ry, ra = robot_poses[-1]
         rx = u*math.cos(ra) - v*math.sin(ra) + rx
         ry = u*math.sin(ra) + v*math.cos(ra) + ry
         ra = a + ra
@@ -191,17 +202,17 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
             #print(".", end="", flush=True)
             s = time.time()
             robot_pose = optimize_pose_combined(gridmap, urglog_data[i], robot_pose)
-            print(f"{time.time() - s:.3f} [s]")
+            print(f"{time.time() - s:.3f} [s] {urg_timestamp} {i}")
         points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose)
         gridmap.update_gridmap(points)
-        gridmap.update_intensity(points, robot_pose)
-        robot_poses.append(robot_pose)
+        #gridmap.update_intensity(points, robot_pose)
+        robot_poses.append([urg_timestamp, robot_pose[0], robot_pose[1], robot_pose[2]])
 
         # 各ロボット座標に対して描画
         img_disp = copy.deepcopy(gridmap.gmap)
         for p in robot_poses:
-            ix = int( p[0] / gridmap.csize) + gridmap.originX
-            iy = int(-p[1] / gridmap.csize) + gridmap.originY
+            ix = int( p[1] / gridmap.csize) + gridmap.originX
+            iy = int(-p[2] / gridmap.csize) + gridmap.originY
             cv2.circle(img_disp, (ix, iy), 5, (82, 54, 20), -1)
 
         # 各LiDAR計測点に対して描画
@@ -217,16 +228,16 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         cv2.imshow("gmap", img_disp_color)
         cv2.waitKey(5)
 
-        # ヘッセ行列とその逆行列を計算
-        H = calc_Hmat(robot_pose, gridmap, start_angle, end_angle, angle_step, ranges, intensity)
-        try:
-            H_inv = np.linalg.inv(H)
-            print("ヘッセ行列の逆行列:")
-            for row in H_inv:
-                print(f"{row[0]:.4f} {row[1]:.4f} {row[2]:.4f}")
-            print()
-        except np.linalg.LinAlgError:
-            print("ヘッセ行列は逆行列を持ちません。")
+        ## ヘッセ行列とその逆行列を計算
+        #H = calc_Hmat(robot_pose, gridmap, start_angle, end_angle, angle_step, ranges, intensity)
+        #try:
+        #    H_inv = np.linalg.inv(H)
+        #    print("ヘッセ行列の逆行列:")
+        #    for row in H_inv:
+        #        print(f"{row[0]:.4f} {row[1]:.4f} {row[2]:.4f}")
+        #    print()
+        #except np.linalg.LinAlgError:
+        #    print("ヘッセ行列は逆行列を持ちません。")
 
     out.release()
     print(f"動画が保存されました: {output_file}")
@@ -235,7 +246,7 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     cv2.imshow("gmap", draw_poses_gmap)
     cv2.waitKey()
 
-    return gridmap
+    return gridmap, robot_poses
 
 # 評価関数をグローバルに移動
 def eval_simple_func(pose, gridmap, start_angle, end_angle, angle_step, ranges, intensity):
@@ -254,10 +265,10 @@ def optimize_pose_combined(gridmap, urglog_data, robot_pose):
         eval_simple_func,
         bounds,
         args=(gridmap, start_angle, end_angle, angle_step, ranges, intensity),
-        strategy='rand1bin',
-        popsize=50,     # ベイズ最適化で求めた86よりちょっと高くする
+        strategy='best1bin',
+        popsize=86,     # ベイズ最適化で求めた86よりちょっと高くする
         tol=1e-6,
-        maxiter=30,     # 同じく，38よりちょっと高くする
+        maxiter=50,     # 同じく，38よりちょっと高くする
         workers=1,
         updating='deferred'  # 適応型の更新
     )
@@ -312,13 +323,22 @@ class Gridmap():
         iy = iy[valid_mask]
         intensity = intensity[valid_mask]
         for iix, iiy, iii in zip(ix, iy, intensity):
-            intensity_data = (iii, pose[0], pose[1])    # poseは反射強度の方向のx,y成分(cos, sin) に相当する．ただし
-                                                        # 規格化されてはいない．反射強度の距離依存性を見たいため
-            self.gmap_intensity[iiy][iix].append(intensity_data)  # リストに値を追加
+            # r: 計測距離
+            # nx, ny: 規格化した方向ベクトル
+            # poseはその反射強度を計測したときのロボットの位置
+            r = np.linalg.norm([pose[0], pose[1]])
+            nx, ny = pose[0:2]/r
+            intensity_data = (iii, pose[0], pose[1], r, nx, ny)    
+            # 対応するグリッドマップ上のリストにデータを追加
+            #self.gmap_intensity[iiy][iix].append(intensity_data)  
+            if 0 <= iiy < len(self.gmap_intensity) and 0 <= iix < len(self.gmap_intensity[iiy]):
+                self.gmap_intensity[iiy][iix].append(intensity_data)
+            else:
+                print(f"範囲外のアクセス: iiy={iiy}, iix={iix}")
 
     def draw_poses(self, poses):
         gmap = copy.deepcopy(self.gmap)
-        for px, py, pa in poses:
+        for _, px, py, pa in poses:
             ix = int( px/self.csize) + self.originX
             iy = int(-py/self.csize) + self.originY
             if ix >= 0 and ix < self.width and iy >= 0 and iy < self.height:
@@ -352,21 +372,33 @@ def init_gridmap(xmin = -5.0, ymin = -5.0, xmax = 5.0, ymax = 5.0, csize = 0.05)
     
 # メイン処理
 if __name__ == "__main__":
-    enc_filepath = "./250106-1/enclog"  # enclogファイルのパス
-    urg_filepath = "./250106-1/urglog"  # urglogファイルのパス
+    enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
+    urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
 
     # データの読み込み
     enclog_data = load_enclog(enc_filepath)  
     urglog_data = load_urglog(urg_filepath)
-    minX = -15.0
-    minY = -15.0
-    maxX =  15.0
-    maxY =  15.0
+    minX = -25.0
+    minY = -100.0
+    maxX =  80.0
+    maxY =  25.0
     csize = 0.025
 
-    #minX = -55.0
-    #minY = -100.0
-    #maxX = 55.0
+    #minX = -15.0
+    #minY = -15.0
+    #maxX =  15.0
+    #maxY =  15.0
+    #csize = 0.025
+
+    #minX = -5.0
+    #minY = -15.0
+    #maxX = 75.0
+    #maxY = 15.0
+    #csize = 0.025
+
+    #minX = -75.0
+    #minY = -120.0
+    #maxX = 75.0
     #maxY = 35.0
     #csize = 0.025
 
@@ -383,81 +415,108 @@ if __name__ == "__main__":
         file.write(f"maxX: {maxX}\n")
         file.write(f"maxY: {maxY}\n")
         file.write(f"margin: 50\n")
+    with open("./mapInfo.lua", "w") as file:
+        file.write("local mapInfo = {\n")
+        file.write(f"\toriginX = {gridmap.originX},\n")
+        file.write(f"\toriginY = {gridmap.originY},\n")
+        file.write(f"\tcsize = {csize},\n")
+        file.write(f"\tminX = {minX},\n")
+        file.write(f"\tminY = {minY},\n")
+        file.write(f"\tmaxX = {maxX},\n")
+        file.write(f"\tmaxY = {maxY},\n")
+        file.write(f"\tmargin = 50,\n")
+        file.write("}\n")
+        file.write("return mapInfo\n")
 
     # SLAM処理を実行して最適化されたマップデータを取得
     s = time.time()
     poses = [(0, 0, 0)]
-    gridmap = slam_process(enclog_data, urglog_data, gridmap, poses)
+    gridmap, poses = slam_process(enclog_data, urglog_data, gridmap, poses)
     print(time.time()-s)
 
     cv2.imshow("gmap", gridmap.gmap)
     cv2.imwrite("opt.png", gridmap.gmap)
+    with open("robot_poses.txt", "w") as file:
+        for p in poses:
+            file.write(f"{p[0]} {p[1]} {p[2]} {p[3]}\n")
     #cv2.waitKey()
 
     # 全ての処理が完了したら，intensity_grid_map を可視化する
-    intensity_grid_map = np.zeros_like(gridmap.gmap)
-    intensity_grid_map = cv2.cvtColor(intensity_grid_map, cv2.COLOR_GRAY2BGR)
-    log_intensity = []
-    for row in range(gridmap.height):
-        for col in range(gridmap.width):
-            if len(gridmap.gmap_intensity[row][col]) > 0:
-                # 占有点座標をワールド座標系へ変換
-                px = (col - gridmap.originX) * gridmap.csize 
-                py =-(row - gridmap.originX) * gridmap.csize 
-                # 反射強度ベクトル
-                vx = 0
-                vy = 0
-                max_intensity_leng = 0
-                log = []
-                for data in gridmap.gmap_intensity[row][col]:
-                    intensity = int(data[0])
-                    leng = intensity // 200
-                    max_intensity_leng = max(max_intensity_leng, leng)
-                    rx = data[1]
-                    ry = data[2]
-                    dx = px - rx
-                    dy = py - ry
-                    #norm = math.sqrt(dx**2 + dy**2)
-                    norm = np.linalg.norm([dx, dy])
-                    dx /= norm
-                    dy /= norm
-                    vx += dx
-                    vy += dy
-                    # row, col の場所（格子）ごとに，反射強度と方向でヒストグラムを作成する
-                    # 作成したヒストグラムを用いて，循環ガウス分布でフィッティングをする
-                    th = math.atan2(dy, dx)
-                    log.append((th, intensity))
-                log_intensity.append([row, col, log])
-                vx /= len(gridmap.gmap_intensity[row][col])
-                vy /= len(gridmap.gmap_intensity[row][col])
-                th = math.atan2(vy, vx)
-                cv2.line(intensity_grid_map, (col, row), 
-                         (col + int(max_intensity_leng*math.cos(th)), row - int(max_intensity_leng*math.sin(th))),
-                         (255, 0, 0), 1, cv2.LINE_AA)
-                cv2.circle(intensity_grid_map, (col, row), 1, (255, 255, 255), -1, cv2.LINE_AA)
+    #intensity_grid_map = np.zeros_like(gridmap.gmap)
+    #intensity_grid_map = cv2.cvtColor(intensity_grid_map, cv2.COLOR_GRAY2BGR)
+    #log_intensity = []
+    #for row in range(gridmap.height):
+    #    if row >= len(gridmap.gmap_intensity):
+    #        continue
+    #    for col in range(gridmap.width):
+    #        if col >= len(gridmap.gmap_intensity[row]):
+    #            continue
+    #        if len(gridmap.gmap_intensity[row][col]) > 0:
+    #            # 占有点座標をワールド座標系へ変換
+    #            px = (col - gridmap.originX) * gridmap.csize 
+    #            py =-(row - gridmap.originX) * gridmap.csize 
+    #            # 反射強度ベクトル
+    #            vx = 0
+    #            vy = 0
+    #            max_intensity_leng = 0
+    #            log = []
+    #            for data in gridmap.gmap_intensity[row][col]:
+    #                intensity = int(data[0])
+    #                leng = intensity // 200
+    #                max_intensity_leng = max(max_intensity_leng, leng)
+    #                rx = data[1]
+    #                ry = data[2]
+    #                dx = px - rx
+    #                dy = py - ry
+    #                #norm = math.sqrt(dx**2 + dy**2)
+    #                norm = np.linalg.norm([dx, dy])
+    #                dx /= norm
+    #                dy /= norm
+    #                vx += dx
+    #                vy += dy
+    #                # row, col の場所（格子）ごとに，反射強度と方向でヒストグラムを作成する
+    #                # 作成したヒストグラムを用いて，循環ガウス分布でフィッティングをする
+    #                th = math.atan2(dy, dx)
+    #                log.append((th, intensity))
+    #            log_intensity.append([row, col, log])
+    #            vx /= len(gridmap.gmap_intensity[row][col])
+    #            vy /= len(gridmap.gmap_intensity[row][col])
+    #            th = math.atan2(vy, vx)
+    #            cv2.line(intensity_grid_map, (col, row), 
+    #                     (col + int(max_intensity_leng*math.cos(th)), row - int(max_intensity_leng*math.sin(th))),
+    #                     (255, 0, 0), 1, cv2.LINE_AA)
+    #            cv2.circle(intensity_grid_map, (col, row), 1, (255, 255, 255), -1, cv2.LINE_AA)
 
-
-    selected_data = []
-    for i, d in enumerate(log_intensity):
-        if len(d[2]) > 100:
-            selected_data.append(d)
-    import matplotlib.pyplot as plt
-    for d in selected_data:
-        x = []
-        y = []
-        print(d[0], d[1])
-        for dd in d[2]:
-            x.append(dd[0])
-            y.append(dd[1])
-        
-        sorted_pairs = sorted(zip(x, y), key=lambda pair: pair[0])
-        x_sorted, y_sorted = zip(*sorted_pairs)
-        plt.plot(x_sorted, y_sorted)#, s=0.5)
-        plt.xlim(-np.pi, np.pi)
-        plt.ylim(0, 15000)
-        plt.grid()
-        plt.show()
-    exit()
+    # 計測データが一定数以上のグリッドを抽出する
+    #selected_data = [cell for cell in log_intensity if len(cell[2]) > 100]
+    # selected_dataの構成
+    # (row, col, log[])
+    # - row, col: 格子地図の行，列座標
+    # - log[]: 計測データの集合．各データは以下のタプルで保持する
+    #          (intensity, pose_x, pose_y, r, nx, ny)
+    # - intensity: 反射強度
+    # - r: 計測距離
+    # - nx, ny: 規格化した方向ベクトル
+    # - pose_x, pose_y: その反射強度を計測したときのロボットの位置座標
+    #   したがって，r = norm(pose_x, pose_y)
+    #import matplotlib.pyplot as plt
+    #for cell in selected_data:
+    #    x = []
+    #    y = []
+    #    print(cell[0], cell[1])
+    #    for th, intensity in cell[2]:
+    #        x.append(th)
+    #        y.append(intensity)
+    #    
+    #    sorted_pairs = sorted(zip(x, y), key=lambda pair: pair[0])
+    #    x_sorted, y_sorted = zip(*sorted_pairs)
+    #    plt.plot(x_sorted, y_sorted)#, s=0.5)
+    #    plt.xlim(-np.pi, np.pi)
+    #    plt.ylim(0, 15000)
+    #    plt.grid()
+    #    plt.show()
+    #exit()
+    
     # グレースケールに変換
     gray = cv2.cvtColor(intensity_grid_map, cv2.COLOR_BGR2GRAY)
     # 背景（黒）を基準に図形を囲むバウンディングボックスを計算
