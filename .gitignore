@@ -14,3 +14,7 @@ urglog*
 data_*
 *.g2o
 mapInfo.lua
+*.png
+*.jpg
+log
+*.bkp
