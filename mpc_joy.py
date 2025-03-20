@@ -39,8 +39,8 @@ config = rc.read_config('config.lua')
 # Initialize LiDAR
 try:
     urg   = Lidar.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
-    urg_m = Lidar.Urg(config.lidar_m.serial_port, config.lidar_m.baudrate, config)
-    urg_b = Lidar.Urg(config.lidar_b.serial_port, config.lidar_b.baudrate, config)
+    #urg_m = Lidar.Urg(config.lidar_m.serial_port, config.lidar_m.baudrate, config)
+    #urg_b = Lidar.Urg(config.lidar_b.serial_port, config.lidar_b.baudrate, config)
 except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Lidar Class.")
@@ -63,18 +63,22 @@ else:
 
 def draw_lidar_on_img(img_org, urg_data, cs, sn):
     d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
-    xd = d_values * cs / 1000  # X座標変換
-    yd = d_values * sn / 1000  # Y座標変換
-    ix = (-yd / csize + width // 2).astype(int)
-    iy = (-xd / csize + height // 2).astype(int)
-    # 範囲内の座標をフィルタリング
-    valid_mask = (ix >= 0) & (ix < width) & (iy >= 0) & (iy < height)
-    ix = ix[valid_mask]
-    iy = iy[valid_mask]
-    # 描画
     img = copy.deepcopy(img_org)
-    for x, y in zip(ix, iy):
-        img[y-2:y+3, x-2:x+3] = color  # 矩形領域を一括で塗りつぶす
+    try:
+        xd = d_values * cs / 1000  # X座標変換
+        yd = d_values * sn / 1000  # Y座標変換
+        ix = (-yd / csize + width // 2).astype(int)
+        iy = (-xd / csize + height // 2).astype(int)
+        # 範囲内の座標をフィルタリング
+        valid_mask = (ix >= 0) & (ix < width) & (iy >= 0) & (iy < height)
+        ix = ix[valid_mask]
+        iy = iy[valid_mask]
+        # 描画
+        for x, y in zip(ix, iy):
+            img[y-2:y+3, x-2:x+3] = color  # 矩形領域を一括で塗りつぶす
+    except:
+        print("d_valueにエラーの可能性")
+        print(d_values)
     return img, d_values
 
 def make_img_org(height, width, color_bg, color_axis, csize):
@@ -100,8 +104,8 @@ def cleanup(fd, urg, md, v=0.0, w=0.0):
     md.turn_off_motors(fd)
     print("Closing serial connection.")
     urg.close()
-    urg_m.close()
-    urg_b.close()
+    #urg_m.close()
+    #urg_b.close()
 
 ox = 0
 oy = 0
@@ -111,6 +115,10 @@ odo_rotation = 0
 urg_data = []
 urg_m_data = []
 urg_b_data = []
+
+#cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
+#frame = ""
+#ret = False
 
 stop_thread = False
 def blv_odometory_fd(fd):
@@ -128,24 +136,63 @@ def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fna
     global urg_data, urg_m_data, urg_b_data
     file_name = fname
     data_size = 1081*4
+    index = 0 # for LittleSLAM
     with open(file_name, "w") as file:
         while not stop_thread:
-            ts = int(time.time() * 1e3)
-            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+            ### for LittleSLAM
+            """
+            frac, integer = math.modf(time.time())
+            microseconds = f"{frac:.6f}".split(".")[1]
+            microseconds = f"{microseconds}000"
             if fname == "urglog":
                 success, urg_data = urg.one_shot_intensity()
+                file.write(f"LASERSCAN {index} {int(integer)} {microseconds} 1081 ")
                 for d in urg_data:
-                    file.write(f"{d[1]} 0 0 {d[2]} ")
+                    ang = int(d[0]) * 0.25 - 135.0
+                    file.write(f"{ang} {float(d[1])/1000} ")
+            
+                file.write(f"{ox:.5f} {oy:.5f} {oa:.5f} ")
+
+            frac, integer = math.modf(time.time())
+            microseconds = f"{frac:.6f}".split(".")[1]
+            microseconds = f"{microseconds}000 "
+            file.write(f"{int(integer)} {microseconds}\n")
+
+            index += 1
+            """
+            ts = int(time.time() * 1e3)
+            #file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+            if fname == "urglog":
+                success, urg_data = urg.one_shot_intensity()
+                file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                for d in urg_data:
+                    file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
             elif fname == "urglog_m":
                 success, urg_m_data = urg.one_shot_intensity()
+                file.write(f"LASERSCANRT {ts} {len(urg_m_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
                 for d in urg_m_data:
                     file.write(f"{d[1]} 0 0 {d[2]} ")
             elif fname == "urglog_b":
                 success, urg_b_data = urg.one_shot_intensity()
+                file.write(f"LASERSCANRT {ts} {len(urg_b_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
                 for d in urg_b_data:
                     file.write(f"{d[1]} 0 0 {d[2]} ")
 
             file.write(f"{ts}\n")
+
+cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
+frame = None
+ret = False
+def image_writer():
+    global ret, frame
+    dir_name = datetime.now().strftime("%y%m%d")
+    dir_name += "_images"
+    os.makedirs(dir_name, exist_ok=True)
+    while not stop_thread:
+        ts = int(time.time() * 1e3)
+        ret, frame = cap.read()
+        cv2.imwrite(f"./{dir_name}_images/{ts}.png", frame)
+        time.sleep(1.0)
 
 try:
     # Initialize Oriental motor BLV-R 
@@ -165,10 +212,14 @@ try:
     echo_size   = config.lidar.echo_size
     lidar_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg, start_angle, end_angle, step_angle, echo_size, "urglog",))
     lidar_measurement_thread.start()
-    lidar_m_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_m, start_angle, end_angle, step_angle, echo_size, "urglog_m",))
-    lidar_m_measurement_thread.start()
-    lidar_b_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_b, start_angle, end_angle, step_angle, echo_size, "urglog_b",))
-    lidar_b_measurement_thread.start()
+    #lidar_m_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_m, start_angle, end_angle, step_angle, echo_size, "urglog_m",))
+    #lidar_m_measurement_thread.start()
+    #lidar_b_measurement_thread = threading.Thread(target=lidar_measurement_fd, args=(urg_b, start_angle, end_angle, step_angle, echo_size, "urglog_b",))
+    #lidar_b_measurement_thread.start()
+
+    # カメラ画像取得のプロセス起動
+    camera_thread = threading.Thread(target=image_writer, args=())
+    camera_thread.start()
 
     height = config.map.window_height
     width = config.map.window_width
@@ -193,7 +244,7 @@ try:
             pass
     elif config.lidar.store_data == False:
         while True:
-            print("LiDARデータは保存されません")
+            print("LiDARデータは保存されません．urglog は保存されます")
             res = "y"
             #res = input("LiDARデータは保存されません．本当に良いですか？ [y/N]")
             if res == "" or res == "n" or res == "N":
@@ -205,8 +256,8 @@ try:
                 md.turn_off_motors(fd)
                 
                 urg.close()
-                urg_m.close()
-                urg_b.close()
+                #urg_m.close()
+                #urg_b.close()
                 #ser.close()
                 sys.exit()
             elif res == "y" or res == "Y":
@@ -231,7 +282,7 @@ try:
     center_x = 0
     center_y = 0
     point_on_circle = [(center_x + 50 * cos(i * pi / 180), center_y + 50 * sin(i * pi / 180)) for i in range(360)]
-    cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
+    #cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     # LiDAR変換用にcos, sin のリストを作る
     cs = [cos((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
     sn = [sin((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
@@ -242,7 +293,7 @@ try:
     ry = 0
     ra = 0
     # 最初の地図は強制的に登録する
-    #success, urg_data = urg.one_shot()
+    #success, urg_data = urg.one_shot_intensity()
     #if success:
     map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
@@ -353,8 +404,9 @@ try:
             stop_thread = True
             blv_odometory_thread.join()
             lidar_measurement_thread.join()
-            lidar_m_measurement_thread.join()
-            lidar_b_measurement_thread.join()
+            camera_thread.join()
+            #lidar_m_measurement_thread.join()
+            #lidar_b_measurement_thread.join()
             break
         elif button_pressed_mapping:
             print("Mapを更新します")
@@ -394,7 +446,7 @@ try:
         # カメラ画像内にターゲット情報を表示する
         # Hmatrixが，mm座標系とpixel座標系の相互変換で定義されていることに注意する
         # mm座標系におけるtarget_x, y を中心とする円を作成し，H_inv を用いてカメラ画像上へ射影変換する
-        ret, frame = cap.read()
+        #ret, frame = cap.read()
         target_x = target_r*cos(target_a) * 1000    # m to mm
         target_y = target_r*sin(target_a) * 1000    # m to mm
         point_on_circle = [(target_x + 50 * cos(i * pi / 180), target_y + 50 * sin(i * pi / 180)) for i in range(360)]
@@ -421,8 +473,9 @@ finally:
     stop_thread = True
     blv_odometory_thread.join()
     lidar_measurement_thread.join()
-    lidar_m_measurement_thread.join()
-    lidar_b_measurement_thread.join()
+    camera_thread.join()
+    #lidar_m_measurement_thread.join()
+    #lidar_b_measurement_thread.join()
     cleanup(fd, urg, md)
     cv2.destroyAllWindows()
     cap.release()
