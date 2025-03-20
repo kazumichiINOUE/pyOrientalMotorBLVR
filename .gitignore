@@ -12,3 +12,4 @@ urglog*
 *.mp4
 *.txt
 data_*
+*.g2o
