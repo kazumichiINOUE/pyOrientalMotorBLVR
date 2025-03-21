@@ -37,7 +37,8 @@ import lidar_draw
 import MotorDriver as md
 import MPC
 
-NAVI = False # enable navigation
+#NAVI = False # enable navigation
+NAVI = True # enable navigation
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -161,12 +162,12 @@ def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fna
     with open(fname, "w") as file:
         while not stop_thread:
             ts = int(time.time() * 1e3)
-            #file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
             if fname == "urglog":
                 success, urg_data = urg.one_shot_intensity()
-                #file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
-                #for d in urg_data:
-                #    file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
+                file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                for d in urg_data:
+                    file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
             elif fname == "urglog_m":
                 success, urg_m_data = urg.one_shot_intensity()
                 #file.write(f"LASERSCANRT {ts} {len(urg_m_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
@@ -178,15 +179,24 @@ def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fna
                 #for d in urg_b_data:
                 #    file.write(f"{d[1]} 0 0 {d[2]} ")
 
-            #file.write(f"{ts}\n")
+            file.write(f"{ts}\n")
 
-def localization(global_map):
-    estimated_pose = [ox, oy, oa] # 並列プロセスで計算しているオドメトリ値
+def localization(global_map, cur_x, cur_y, cur_a):
+    estimated_pose = [cur_x, cur_y, cur_a] 
     if len(urg_data) < 1:
         print("Can't get the urg_data. length is zero.")
         return estimated_pose
 
     estimated_pose = optimize_pose_combined(global_map, mapInfo, urg_data, estimated_pose) # LiDARデータも同様
+
+    #N = 10
+    #index, ranges, _ = np.array(urg_data).T[:, ::N]
+    #ranges = ranges.astype(float)
+    #ranges /= 1000.0
+    #angles = np.radians([ind * 0.25 - 135.0 for ind in index])
+    #estimated_pose = my_robot_localization.optimize_pose_de(global_map,
+    #                               mapInfo.csize, mapInfo.originX, mapInfo.originY, -135.0, 135.0, 0.25, 
+    #                               ranges, angles, estimated_pose, 10, 18, 0.8, 0.9) 
     return estimated_pose
 
 ####### C++ に変更したほうが4倍遅い　
@@ -243,7 +253,7 @@ def matches_simple(points, global_map, mapInfo):
 def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     global searched_pose_list
     searched_pose_list = []
-    N = 1 # Nを10倍すると推定時間は1/2になった．劇的な効果ではない
+    N = 10 # Nを10倍すると推定時間は1/2になった．劇的な効果ではない
     index, ranges, _ = np.array(urg_data).T[:, ::N]
     #index, ranges, _ = np.array(urg_data).T
     ranges = ranges.astype(float)
@@ -253,7 +263,7 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     # 今の動作周期だと，この範囲では探索から外れてしまう．探索時間を減らす工夫のほうが必要
     bounds = [(robot_pose[0] - 0.5, robot_pose[0] + 0.5),
               (robot_pose[1] - 0.5, robot_pose[1] + 0.5),
-              (robot_pose[2] - 20*math.pi/180, robot_pose[2] + 20*math.pi/180)]
+              (robot_pose[2] - 10*math.pi/180, robot_pose[2] + 10*math.pi/180)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
@@ -310,10 +320,10 @@ def image_writer():
 
 def get_wp_list():
     wp_list = []
-    wp_list.append([5.0, -0.5, 0])
-    wp_list.append([5.0, -2.0, -np.pi/2])
-    wp_list.append([0.0, -2.0, -np.pi])
-    #wp_list.append([0.0, 0.0, np.pi/2])
+    wp_list.append([11.5, -1.0, 0])
+    wp_list.append([11.5, -15.0, -np.pi/2])
+    wp_list.append([11.5, -30.0, -np.pi/2])
+    wp_list.append([11.0, -50.0, -np.pi/2])
     return wp_list
     #with open(wp_fname, "r") as file:
 
@@ -338,8 +348,10 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index):
         target_a -= 2*np.pi
     elif target_a < -np.pi:
         target_a += 2*np.pi
-    robot_a = wa
+    if da > 0:
+        target_a = -target_a
 
+    robot_a = wa
     if target_r > 0.5:
         v = 0.4
     else:
@@ -350,9 +362,10 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index):
         w = target_a
     else:
         w = 0
-    w = 0.2*w
+    w = 0.5*da
     print(f"{v}, {w:.3f}, {x:.3f}, {y:.3f}, {wx}, {wy}, {target_r:.3f}, {target_a:.3f}")
     return v, w, target_r, target_a, robot_a, wp_index
+
 try:
     # Initialize Oriental motor BLV-R 
     fd = md.init(config.motor.serial_port, config.motor.baudrate)
@@ -465,207 +478,214 @@ try:
     prev_odo_x = ox 
     prev_odo_y = oy
     prev_odo_a = oa
-    while True:
-        ts = int(time.time() * 1e3)
-        
-        # Localization
-        # Global map を用いて自己位置推定
-        s = time.time()
-        cur_x = 
-        cur_x, cur_y, cur_a = ox, oy, oa
+    with open("estimated_pose.txt", "w") as est_file:
+        while True:
+            ts = int(time.time() * 1e3)
 
-        estimated_pose = localization(global_map) 
-        rx, ry, ra = estimated_pose # 現在姿勢
-        DT = time.time() - s
-        print(f"Localization time: {DT}")
-        search_result_path = f"search_result/search_result_{loop_counter}.txt"
-        with open(search_result_path, "w") as file:
-            for val in searched_pose_list:
-                file.write(f"{val[0]} {val[1]} {val[2]} {val[3]}\n")
-                # val[0-2] xya
-                # val[3] eval
-        searched_pose_list_np = np.array(searched_pose_list)
-        de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
-        dx = cur_x - prev_odo_x
-        dy = cur_y - prev_odo_y
-        da = cur_a - prev_odo_a 
-        dist = math.sqrt(dx**2 + dy**2)
-        vt = dist / DT
-        wt = abs(da / DT)
-        if vt < 0.02:
-            vt = 0.02
-        if wt < 0.05:
-            wt = 0.05
-        odo_cov_matrix = np.eye(3)
-        odo_cov_matrix[0, 0] = 0.01 * vt*vt
-        odo_cov_matrix[1, 1] = 0.05 * vt*vt
-        odo_cov_matrix[2, 2] = 0.5 * wt*wt
-        # 状態ベクトル
-        x_odo = np.array([cur_x, cur_y, cur_a])
-        x_scan = np.array([rx, ry, ra])
-        # カルマンゲインの計算
-        K = odo_cov_matrix @ np.linalg.inv(odo_cov_matrix + de_cov_matrix)
-        # センサフュージョン
-        x_fused = x_odo + K @ (x_scan - x_odo)
-        # 共分散行列の更新
-        I = np.eye(3)
-        P_fused = (I - K) @ odo_cov_matrix
+            # Localization
+            # Global map を用いて自己位置推定
+            s = time.time()
+            #cur_x =  ここを変える 
+            cur_x = math.cos(ra) * ou - math.sin(ra) * ov + rx
+            cur_y =-math.sin(ra) * ou + math.cos(ra) * ov + ry
+            cur_a = oth + ra
+            #cur_x, cur_y, cur_a = ox, oy, oa
 
-        print("融合後の位置:", x_fused)
-        print("融合後の共分散行列:\n", P_fused)
-        
-        prev_odo_x = cur_x 
-        prev_odo_y = cur_y
-        prev_odo_a = cur_a
+            estimated_pose = localization(global_map, cur_x, cur_y, cur_a) 
+            rx, ry, ra = estimated_pose # 現在姿勢
+            DT = time.time() - s
+            print(f"Localization time: {DT}")
+            # search_result_path = f"search_result/search_result_{loop_counter}.txt"
+            # with open(search_result_path, "w") as file:
+            #     for val in searched_pose_list:
+            #         file.write(f"{val[0]} {val[1]} {val[2]} {val[3]}\n")
+            #         # val[0-2] xya
+            #         # val[3] eval
+            # est_file.write(f"{rx} {ry} {ra} {searched_pose_list[-1][3]} {ts}\n") 
+            """
+            searched_pose_list_np = np.array(searched_pose_list)
+            de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
+            dx = cur_x - prev_odo_x
+            dy = cur_y - prev_odo_y
+            da = cur_a - prev_odo_a 
+            dist = math.sqrt(dx**2 + dy**2)
+            vt = dist / DT
+            wt = abs(da / DT)
+            if vt < 0.02:
+                vt = 0.02
+            if wt < 0.05:
+                wt = 0.05
+            odo_cov_matrix = np.eye(3)
+            odo_cov_matrix[0, 0] = 0.01 * vt*vt
+            odo_cov_matrix[1, 1] = 0.05 * vt*vt
+            odo_cov_matrix[2, 2] = 0.5 * wt*wt
+            # 状態ベクトル
+            x_odo = np.array([cur_x, cur_y, cur_a])
+            x_scan = np.array([rx, ry, ra])
+            # カルマンゲインの計算
+            K = odo_cov_matrix @ np.linalg.inv(odo_cov_matrix + de_cov_matrix)
+            # センサフュージョン
+            x_fused = x_odo + K @ (x_scan - x_odo)
+            # 共分散行列の更新
+            I = np.eye(3)
+            P_fused = (I - K) @ odo_cov_matrix
 
-        rx = x_fused[0]
-        ry = x_fused[1]
-        ra = x_fused[2]
-        loop_counter += 1
+            print("融合後の位置:", x_fused)
+            print("融合後の共分散行列:\n", P_fused)
 
-        # python と cpp で描画更新速度の比較
-        #s = time.time()
-        #img_disp = copy.deepcopy(global_map)
-        #ix = int( rx / mapInfo.csize) + mapInfo.originX
-        #iy = int(-ry / mapInfo.csize) + mapInfo.originY
-        #cv2.circle(img_disp, (ix, iy), 25, (82, 54, 20), -1)
-        #draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, mapInfo)
-        #print(f"Drawing Global map time (Python): {time.time()-s}")
-        #s = time.time()
-        img_disp = copy.deepcopy(global_map)
-        # 描画をcppで実行しても，速度差はない
-        map_info = lidar_draw.MapInfo()
-        map_info.originX = mapInfo.originX
-        map_info.originY = mapInfo.originY
-        map_info.csize = mapInfo.csize
-        color_hex = "#FFFFFF"  # White
-        lidar_draw.draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, map_info, start_angle, end_angle, step_angle, color_hex)
-        #print(f"Drawing Global map time (cpp): {time.time()-s}")
-        cv2.imshow("GlobalMap", img_disp)
-            
-        # Get & Show LiDAR data
-        #success, urg_data = urg.one_shot()
-        #if success:
-        #img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
+            prev_odo_x = cur_x 
+            prev_odo_y = cur_y
+            prev_odo_a = cur_a
 
-        # Get joystick status
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
-            if event.type == pygame.JOYBUTTONDOWN:
-                if event.button == NUM_JOY_GET_LIDAR:
-                    ts = int(time.time() * 1e3)
-                    if config.lidar.store_data:
-                        with open(file_name, "a") as file:
-                            data_size = 1081*3
-                            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
-                            for d in urg_data:
-                                file.write(f"{d[1]} 0 0 ")
-                            file.write(f"{ts}\n")
-                        print("Stored LiDAR data")
+            rx = x_fused[0]
+            ry = x_fused[1]
+            ra = x_fused[2]
+            """
 
-                    break
-                elif event.button == NUM_JOY_GET_STATE:
-                    print(event.button)
-                    break
+            loop_counter += 1
 
-            # Get button state of joystick
-            button_pressed_turn_left  = joystick.get_button(NUM_JOY_TURN_LEFT)  
-            button_pressed_go_forward = joystick.get_button(NUM_JOY_GO_FORWARD)  
-            button_pressed_go_back    = joystick.get_button(NUM_JOY_GO_BACK) 
-            button_pressed_turn_right = joystick.get_button(NUM_JOY_TURN_RIGHT) 
-            button_pressed_shutdown   = joystick.get_button(NUM_JOY_SHUTDOWN)
-            button_pressed_mapping    = joystick.get_button(NUM_JOY_MAPPING)
+            # python と cpp で描画更新速度の比較
+            #s = time.time()
+            #img_disp = copy.deepcopy(global_map)
+            #ix = int( rx / mapInfo.csize) + mapInfo.originX
+            #iy = int(-ry / mapInfo.csize) + mapInfo.originY
+            #cv2.circle(img_disp, (ix, iy), 25, (82, 54, 20), -1)
+            #draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, mapInfo)
+            #print(f"Drawing Global map time (Python): {time.time()-s}")
+            #s = time.time()
+            img_disp = copy.deepcopy(global_map)
+            # 描画をcppで実行しても，速度差はない
+            map_info = lidar_draw.MapInfo()
+            map_info.originX = mapInfo.originX
+            map_info.originY = mapInfo.originY
+            map_info.csize = mapInfo.csize
+            color_hex = "#FFFFFF"  # White
+            lidar_draw.draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, map_info, start_angle, end_angle, step_angle, color_hex)
+            cv2.imshow("GlobalMap", img_disp)
 
-        if button_pressed_turn_left: # Turn Left
-            target_r  = 1.0
-            target_a  = pi/2
-            robot_a   = pi/2
-            center_y += 100
-            #print("0ボタンが押されています")
-        elif button_pressed_go_forward: # Go forward
-            target_r  = 1.0
-            target_a  = 0.0
-            robot_a   = 0.0
-            center_x += 100
-            #print("1ボタンが押されています")
-        elif button_pressed_go_back: # Go back
-            target_r  = 1.0
-            target_a  = pi
-            robot_a   = 0.0
-            center_x -= 100
-            #print("2ボタンが押されています")
-        elif button_pressed_turn_right: # Turn Right
-            target_r  = 1.0
-            target_a  = -pi/2
-            robot_a   = -pi/2
-            center_y -= 100
-            #print("3ボタンが押されています")
-        elif button_pressed_shutdown: # Shutdown
-            print("Pressed Stop button")
-            stop_thread = True
-            blv_odometory_thread.join()
-            lidar_measurement_thread.join()
-            camera_thread.join()
-            #lidar_m_measurement_thread.join()
-            #lidar_b_measurement_thread.join()
-            break
-        elif button_pressed_mapping:
-            print("Mapを更新します")
-            map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
-        else:
-            # joypadの入力がない場合は，現在位置を目標値点としたmpcを行う
-            target_r = 0.0
-            target_a = 0.0
-            robot_a = 0.0
+            # Get & Show LiDAR data
+            #success, urg_data = urg.one_shot()
+            #if success:
+            #img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
-        if NAVI:
-            v, w, target_r, target_a, robot_a, wp_index = get_navigation_cmd(estimated_pose, wp_list, wp_index)
-            md.send_vw(fd, v, w)
+            # Get joystick status
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
+                if event.type == pygame.JOYBUTTONDOWN:
+                    if event.button == NUM_JOY_GET_LIDAR:
+                        ts = int(time.time() * 1e3)
+                        if config.lidar.store_data:
+                            with open(file_name, "a") as file:
+                                data_size = 1081*3
+                                file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                                for d in urg_data:
+                                    file.write(f"{d[1]} 0 0 ")
+                                file.write(f"{ts}\n")
+                            print("Stored LiDAR data")
 
-        # Get control command from MPC
-        x_ref = casadi.DM([target_r*cos(target_a), target_r*sin(target_a),  robot_a])
-        u_ref = casadi.DM([0, 0])
-        K = 10
-        T = 1
-        x_init = casadi.DM([0, 0, 0])   # 常に現在のロボット座標系からスタートする
-        mpc = MPC.MPCController(x_ref, u_ref, K, T)
-        x0 = casadi.DM.zeros(mpc.total_vars)
-        x_current = x_init
-        u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
-        md.send_vw(fd, u_opt[0], u_opt[1])
+                        break
+                    elif event.button == NUM_JOY_GET_STATE:
+                        print(event.button)
+                        break
 
-        ## MPCに与えたターゲット座標
-        #tx =  int(-x_ref[1, 0]/csize) + width//2
-        #ty = -int( x_ref[0, 0]/csize) + height//2
-        #cx =  int(-center_y/1000/csize) + width//2
-        #cy = -int( center_x/1000/csize) + height//2
-        #cv2.circle(img, (tx, ty), int(1/config.map.csize/2), hex_to_rgb(config.map.color.target), 3)
-        ##cv2.circle(img, (cx, cy), 50, (0, 0, 255), 1)
-        #cv2.imshow("LiDAR", img)
+                # Get button state of joystick
+                button_pressed_turn_left  = joystick.get_button(NUM_JOY_TURN_LEFT)  
+                button_pressed_go_forward = joystick.get_button(NUM_JOY_GO_FORWARD)  
+                button_pressed_go_back    = joystick.get_button(NUM_JOY_GO_BACK) 
+                button_pressed_turn_right = joystick.get_button(NUM_JOY_TURN_RIGHT) 
+                button_pressed_shutdown   = joystick.get_button(NUM_JOY_SHUTDOWN)
+                button_pressed_mapping    = joystick.get_button(NUM_JOY_MAPPING)
 
-        #lx =  int(-oy/csize) + width//2
-        #ly = -int( ox/csize) + height//2
-        #cv2.circle(map, (lx, ly), 10, (255, 0, 0), 2)
-        #cv2.imshow("Map", map)
+            if button_pressed_turn_left: # Turn Left
+                target_r  = 1.0
+                target_a  = pi/2
+                robot_a   = pi/2
+                center_y += 100
+                #print("0ボタンが押されています")
+            elif button_pressed_go_forward: # Go forward
+                target_r  = 1.0
+                target_a  = 0.0
+                robot_a   = 0.0
+                center_x += 100
+                #print("1ボタンが押されています")
+            elif button_pressed_go_back: # Go back
+                target_r  = 1.0
+                target_a  = pi
+                robot_a   = 0.0
+                center_x -= 100
+                #print("2ボタンが押されています")
+            elif button_pressed_turn_right: # Turn Right
+                target_r  = 1.0
+                target_a  = -pi/2
+                robot_a   = -pi/2
+                center_y -= 100
+                #print("3ボタンが押されています")
+            elif button_pressed_shutdown: # Shutdown
+                print("Pressed Stop button")
+                stop_thread = True
+                blv_odometory_thread.join()
+                lidar_measurement_thread.join()
+                camera_thread.join()
+                #lidar_m_measurement_thread.join()
+                #lidar_b_measurement_thread.join()
+                break
+            elif button_pressed_mapping:
+                print("Mapを更新します")
+                map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
+            else:
+                # joypadの入力がない場合は，現在位置を目標値点としたmpcを行う
+                target_r = 0.0
+                target_a = 0.0
+                robot_a = 0.0
 
-        # カメラ画像内にターゲット情報を表示する
-        # Hmatrixが，mm座標系とpixel座標系の相互変換で定義されていることに注意する
-        # mm座標系におけるtarget_x, y を中心とする円を作成し，H_inv を用いてカメラ画像上へ射影変換する
-        #ret, frame = cap.read()
-                
-        #target_x = target_r*cos(target_a) * 1000    # m to mm
-        #target_y = target_r*sin(target_a) * 1000    # m to mm
-        #point_on_circle = [(target_x + 50 * cos(i * pi / 180), target_y + 50 * sin(i * pi / 180)) for i in range(360)]
-        #for tx, ty in point_on_circle:
-        #    p1 = np.array([tx, ty, 1])
-        #    p_origin = np.dot(H_inv, p1)
-        #    p_origin = p_origin/p_origin[2]
-        #    cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 2, (0, 0, 255), -1)
-        #cv2.imshow('Capture image', frame)
+            if NAVI:
+                v, w, target_r, target_a, robot_a, wp_index = get_navigation_cmd(estimated_pose, wp_list, wp_index)
+                md.send_vw(fd, v, w)
+            else:
+                # Get control command from MPC
+                x_ref = casadi.DM([target_r*cos(target_a), target_r*sin(target_a),  robot_a])
+                u_ref = casadi.DM([0, 0])
+                K = 10
+                T = 1
+                x_init = casadi.DM([0, 0, 0])   # 常に現在のロボット座標系からスタートする
+                mpc = MPC.MPCController(x_ref, u_ref, K, T)
+                x0 = casadi.DM.zeros(mpc.total_vars)
+                x_current = x_init
+                u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
+                md.send_vw(fd, u_opt[0], u_opt[1])
 
-        cv2.waitKey(5)
-        pygame.time.wait(10)
+            ## MPCに与えたターゲット座標
+            #tx =  int(-x_ref[1, 0]/csize) + width//2
+            #ty = -int( x_ref[0, 0]/csize) + height//2
+            #cx =  int(-center_y/1000/csize) + width//2
+            #cy = -int( center_x/1000/csize) + height//2
+            #cv2.circle(img, (tx, ty), int(1/config.map.csize/2), hex_to_rgb(config.map.color.target), 3)
+            ##cv2.circle(img, (cx, cy), 50, (0, 0, 255), 1)
+            #cv2.imshow("LiDAR", img)
+
+            #lx =  int(-oy/csize) + width//2
+            #ly = -int( ox/csize) + height//2
+            #cv2.circle(map, (lx, ly), 10, (255, 0, 0), 2)
+            #cv2.imshow("Map", map)
+
+            # カメラ画像内にターゲット情報を表示する
+            # Hmatrixが，mm座標系とpixel座標系の相互変換で定義されていることに注意する
+            # mm座標系におけるtarget_x, y を中心とする円を作成し，H_inv を用いてカメラ画像上へ射影変換する
+            #ret, frame = cap.read()
+
+            #target_x = target_r*cos(target_a) * 1000    # m to mm
+            #target_y = target_r*sin(target_a) * 1000    # m to mm
+            #point_on_circle = [(target_x + 50 * cos(i * pi / 180), target_y + 50 * sin(i * pi / 180)) for i in range(360)]
+            #for tx, ty in point_on_circle:
+            #    p1 = np.array([tx, ty, 1])
+            #    p_origin = np.dot(H_inv, p1)
+            #    p_origin = p_origin/p_origin[2]
+            #    cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 2, (0, 0, 255), -1)
+            #cv2.imshow('Capture image', frame)
+
+            cv2.waitKey(5)
+            pygame.time.wait(10)
 
 except KeyboardInterrupt:
     print("Pressed Ctrl + C")
