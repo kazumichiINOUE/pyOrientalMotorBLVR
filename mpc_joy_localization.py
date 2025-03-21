@@ -319,11 +319,31 @@ def image_writer():
     #    time.sleep(1.0)
 
 def get_wp_list():
-    wp_list = []
-    wp_list.append([11.5, -1.0, 0])
+    #wp_list = []
+    """
+    # 研究室入り口前
+    wp_list.append([5, 0.0, 0])
+    wp_list.append([5, -3, -np.pi/2])
+    wp_list.append([-3, -3, -np.pi])
+    wp_list.append([-3, 0, np.pi/2])
+    wp_list.append([0, 0, 0])
+    """
+    # 研究室前〜D棟周回コース
+    wp_list.append([5, 0.0, 0])
+    wp_list.append([12.0, -1.0, 0])
     wp_list.append([11.5, -15.0, -np.pi/2])
     wp_list.append([11.5, -30.0, -np.pi/2])
     wp_list.append([11.0, -50.0, -np.pi/2])
+    wp_list.append([12.0, -77.0, -np.pi/2])
+    wp_list.append([44.0, -76.0, 0])
+    wp_list.append([43.5, -56.0, np.pi/2])
+    wp_list.append([43.5, -48.0, np.pi/2])
+    wp_list.append([49.5, -41.5, 45*np.pi/180])
+    wp_list.append([55.5, -35.0, np.pi/2])
+    #wp_list.append([55.5, -3.0, np.pi])
+    #wp_list.append([-3, -3.0, np.pi])
+    #wp_list.append([0, 0, 0])
+
     return wp_list
     #with open(wp_fname, "r") as file:
 
@@ -331,7 +351,12 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index):
     x, y, a = estimated_pose
     wx, wy, wa = wp_list[wp_index]
     d = math.sqrt((wx - x)**2 + (wy - y)**2)
-    da = wa - a
+    da = wa - a     # wpに指定された方向と現在の方向の差
+    delta_th = math.atan2(wy-y, wx-x) - a # 現在の方向を基準にした，wpまでの方向差
+    if delta_th > np.pi:
+        delta_th -= 2*np.pi
+    elif delta_th < -np.pi:
+        delta_th += 2*np.pi
     if da > np.pi:
         da -= 2*np.pi
     elif da < -np.pi:
@@ -362,7 +387,7 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index):
         w = target_a
     else:
         w = 0
-    w = 0.5*da
+    w = 0.5*delta_th
     print(f"{v}, {w:.3f}, {x:.3f}, {y:.3f}, {wx}, {wy}, {target_r:.3f}, {target_a:.3f}")
     return v, w, target_r, target_a, robot_a, wp_index
 
