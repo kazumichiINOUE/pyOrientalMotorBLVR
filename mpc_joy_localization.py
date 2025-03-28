@@ -17,7 +17,11 @@ import numpy as np
 import casadi       # モデル予測制御
 import traceback    # エラーメッセージ情報取得
 import threading    # マルチスレッド
-from scipy.optimize import differential_evolution, minimize
+from scipy.optimize import differential_evolution
+from pathlib import Path # pathの操作
+import readchar # 1文字の入力受付
+import shutil   # sub-dir の操作
+
 
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
@@ -37,17 +41,72 @@ import lidar_draw
 import MotorDriver as md
 import MPC
 
-#NAVI = False # enable navigation
+# Select navigation mode
 NAVI = True # enable navigation
+#NAVI = False # disable navigation
+
+STORE_ROOT_DIR_NAME = "experiment_250328-1"
+if Path(STORE_ROOT_DIR_NAME).exists():
+    print(f"'{STORE_ROOT_DIR_NAME}' exists.")
+    print("Do you want to continue? y/[n] ", end="", flush=True)
+    response = readchar.readchar()  # 1文字入力を受け付ける
+    if response.lower() == "y":
+        print("\nContinuing...")
+        print("Delete existing log files")
+        files_to_delete = ["enclog", "estimated_pose.txt", "mpc_joy_localization_output.mp4", "urglog"]
+        for file in files_to_delete:
+            file_path = os.path.join(STORE_ROOT_DIR_NAME, file)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"Deleted: {file_path}")
+        subdir = os.path.join(STORE_ROOT_DIR_NAME, "search_result")  # サブディレクトリのパス
+        if os.path.exists(subdir):
+            for file in os.listdir(subdir):
+                file_path = os.path.join(subdir, file)
+                if os.path.isfile(file_path):  # ファイルなら削除
+                    os.remove(file_path)
+                    print(f"Deleted: {file_path}")
+
+        # 必要なファイルが存在するか確認
+        else:
+            # search_resultが無ければ作成
+            os.makedirs(subdir, exist_ok=True)
+
+        if os.path.isdir(os.path.join(STORE_ROOT_DIR_NAME, "global_map")):
+            print("✅ exist global_map")
+        else:
+            print("global_mapを作成してください．")
+            exit()
+        if os.path.isfile(os.path.join(STORE_ROOT_DIR_NAME, "wp_list.txt")):
+            print("✅ exist wp_list.txt")
+        else:
+            print("wp_list.txtを作成してください．")
+            exit()
+    else:
+        print("\nExiting...")
+        exit()
+else:
+    print(f"'{STORE_ROOT_DIR_NAME}' does not exist.")
+    # ディレクトリがなければ作成
+    os.makedirs(STORE_ROOT_DIR_NAME, exist_ok=True)
+    SUBDIRS = ["search_result"]  # 作成するサブディレクトリのリスト
+    # サブディレクトリの作成
+    for subdir in SUBDIRS:
+        os.makedirs(os.path.join(STORE_ROOT_DIR_NAME, subdir), exist_ok=True)
+        os.makedirs(os.path.join(STORE_ROOT_DIR_NAME, subdir), exist_ok=True)
+    print(f"{STORE_ROOT_DIR_NAME}は作成しました．")
+    print("global_map, wp_list.txtを作成してから実行してください")
+    exit()
+
+#exit()
 
 # Include default configuration
 config = rc.read_config('config.lua')
-DIR_NAME = "slam_test/250314-3"
-mapInfo = rc.read_mapInfo(f"{DIR_NAME}/mapInfo.lua")
+mapInfo = rc.read_mapInfo(f"{STORE_ROOT_DIR_NAME}/global_map/mapInfo.lua")
 
 # Initialize LiDAR
 try:
-    urg   = Lidar.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
+    urg = Lidar.Urg(config.lidar.serial_port, config.lidar.baudrate, config)
 except serial.SerialException as e:
     print(f"Error: {e}")
     print("Connect to Dummy Lidar Class.")
@@ -139,13 +198,13 @@ def blv_odometory_fd(fd):
     prev_oy = 0
     prev_oa = 0
 
-    file_name = "enclog"
+    file_name = f"{STORE_ROOT_DIR_NAME}/enclog"
     with open(file_name, "w") as file:
         while not stop_thread:
             ts = int(time.time() * 1e3)
             ox, oy, oa, odo_travel, odo_rotation = md.read_odo2(fd, ox, oy, oa, odo_travel, odo_rotation)
             #print(f"Odo: x={ox:.2f}, y={oy:.2f}, a={oa:.2f}, travel={odo_travel:.2f}, rotation={odo_rotation:.2f}")
-            #file.write(f"{ts} {ox} {oy} {oa} end\n")
+            file.write(f"{ts} {ox} {oy} {oa} end\n")
             dx = ox - prev_ox
             dy = oy - prev_oy
             da = oa - prev_oa
@@ -153,21 +212,23 @@ def blv_odometory_fd(fd):
             ov = -dx * sin(oa) + dy * cos(oa)
             oth = da
             prev_ox, prev_oy, prev_oa = ox, oy, oa
-            time.sleep(0.01)
+            time.sleep(0.05)
 
 def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fname):
     global urg_data, urg_m_data, urg_b_data
     data_size = 1081*4
     #index = 0 # for LittleSLAM
-    with open(fname, "w") as file:
+    filename = f"{STORE_ROOT_DIR_NAME}/{fname}"
+    with open(filename, "w") as file:
         while not stop_thread:
             ts = int(time.time() * 1e3)
             file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
             if fname == "urglog":
                 success, urg_data = urg.one_shot_intensity()
-                file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
-                for d in urg_data:
-                    file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
+                if success:
+                    file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                    for d in urg_data:
+                        file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
             elif fname == "urglog_m":
                 success, urg_m_data = urg.one_shot_intensity()
                 #file.write(f"LASERSCANRT {ts} {len(urg_m_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
@@ -189,6 +250,8 @@ def localization(global_map, cur_x, cur_y, cur_a):
 
     estimated_pose = optimize_pose_combined(global_map, mapInfo, urg_data, estimated_pose) # LiDARデータも同様
 
+    # 以下のcppライブラリは動作速度が遅すぎて使えない
+    # 原因調査は保留
     #N = 10
     #index, ranges, _ = np.array(urg_data).T[:, ::N]
     #ranges = ranges.astype(float)
@@ -197,11 +260,20 @@ def localization(global_map, cur_x, cur_y, cur_a):
     #estimated_pose = my_robot_localization.optimize_pose_de(global_map,
     #                               mapInfo.csize, mapInfo.originX, mapInfo.originY, -135.0, 135.0, 0.25, 
     #                               ranges, angles, estimated_pose, 10, 18, 0.8, 0.9) 
-    return estimated_pose
+    succ = True
+    threshold = 20
+    if searched_pose_list[-1][3] > (-threshold):
+        print(f"一致点が少ない {searched_pose_list[-1][3]}")
+        estimated_pose = [cur_x, cur_y, cur_a] 
+        succ = False
+    min_threshold = 50   # 以上の値
+    max_threshold = 35000  # 未満の値
+    count = sum(1 for index, r, intensity in urg_data if min_threshold <= r < max_threshold)
+    return estimated_pose, succ, count
 
 ####### C++ に変更したほうが4倍遅い　
 ####### Numexpr　でも遅い．おそらく，計算量が有利になるほどのデータ数ではない
-import numexpr as ne  # NumPy よりも速い計算ライブラリ
+# import numexpr as ne  # NumPy よりも速い計算ライブラリ
 def convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, angles, robot_pose):
     urg_shift_x = 0.165
     x, y, theta = robot_pose
@@ -260,10 +332,10 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     angles = np.radians([ind * step_angle + start_angle for ind in index])
 
     # 粗い探索
-    # 今の動作周期だと，この範囲では探索から外れてしまう．探索時間を減らす工夫のほうが必要
+    # 今の動作周期だと，この範囲では探索から外れてしまうことがある．探索時間を減らす工夫のほうが必要
     bounds = [(robot_pose[0] - 0.5, robot_pose[0] + 0.5),
               (robot_pose[1] - 0.5, robot_pose[1] + 0.5),
-              (robot_pose[2] - 10*math.pi/180, robot_pose[2] + 10*math.pi/180)]
+              (robot_pose[2] - 20*math.pi/180, robot_pose[2] + 20*math.pi/180)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
@@ -278,6 +350,7 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
 
     return result_de.x
 
+# 以下はcppライブラリに移植したので使っていない
 def draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, mapInfo):
     color = hex_to_rgb(config.map.color.target)
     height = len(global_map)
@@ -355,7 +428,6 @@ def get_wp_list():
             wp_list.append([x, y])
 
     return wp_list
-    #with open(wp_fname, "r") as file:
 
 def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     x, y, a = estimated_pose
@@ -414,19 +486,29 @@ try:
     width = config.map.window_width
     csize = config.map.csize
     img_org = make_img_org(height, width, config.map.color.bg, config.map.color.axis, csize)
-    img = copy.deepcopy(img_org)
-    map = copy.deepcopy(img_org)
-    cv2.imshow("LiDAR", img)
-    cv2.imshow("Map", map)
-    global_map = cv2.imread(f"{DIR_NAME}/opt.png")
+    #img = copy.deepcopy(img_org)
+    #map = copy.deepcopy(img_org)
+    #cv2.imshow("LiDAR", img)
+    #cv2.imshow("Map", map)
+    global_map = cv2.imread(f"{STORE_ROOT_DIR_NAME}/global_map/rebuild_opt.png")
     cv2.imshow("GlobalMap", global_map)
+
+    # MP4動画に保存する処理
+    # 動画ライターの設定
+    output_file = STORE_ROOT_DIR_NAME + "/mpc_joy_localization_output.mp4"
+    height_img_disp_color, width_img_disp_color = global_map.shape[:2]
+    height, width = frame.shape[:2]  # 先頭2要素を取得
+    fps = 30  # フレームレート
+    # MP4動画に保存準備
+    fourcc = cv2.VideoWriter_fourcc(*'H264')  # コーデック指定
+    out = cv2.VideoWriter(output_file, fourcc, fps, (width_img_disp_color+width, height_img_disp_color))
 
     # Create file name to store LiDAR data
     if config.lidar.store_data:
         #file_name = input("データを保存するファイル名を指示してください（終了する場合はEnterキーを押してください）: ")
         timestamp = int(time.time())
         formatted_date = datetime.fromtimestamp(timestamp).strftime('%Y_%m_%d_%H_%M_%S')
-        file_name = "urglog_" + formatted_date
+        file_name = STORE_ROOT_DIR_NAME + "/urglog_" + formatted_date
 
         if file_name == "":
             print("プログラムを終了します。")
@@ -494,72 +576,75 @@ try:
     loop_counter = 0
     wp_index = 0
     wp_list = get_wp_list()
-    prev_odo_x = ox 
-    prev_odo_y = oy
-    prev_odo_a = oa
-    with open("estimated_pose.txt", "w") as est_file:
+    ave_valid_count = 0
+    with open(f"{STORE_ROOT_DIR_NAME}/estimated_pose.txt", "w") as est_file:
+        odo_prev_x, odo_prev_y, odo_prev_a = ox, oy, oa
         while True:
             ts = int(time.time() * 1e3)
 
             # Localization
             # Global map を用いて自己位置推定
             s = time.time()
-            #cur_x =  ここを変える 
-            cur_x = math.cos(ra) * ou - math.sin(ra) * ov + rx
-            cur_y =-math.sin(ra) * ou + math.cos(ra) * ov + ry
-            cur_a = oth + ra
-            #cur_x, cur_y, cur_a = ox, oy, oa
+            # オドメトリで現在位置を更新
+            odo_delta_x = ox - odo_prev_x
+            odo_delta_y = oy - odo_prev_y
+            odo_delta_a = oa - odo_prev_a
+            odo_u =  odo_delta_x * cos(oa) + odo_delta_y * sin(oa)
+            odo_v = -odo_delta_x * sin(oa) + odo_delta_y * cos(oa)
+            odo_th = odo_delta_a
+            odo_prev_x, odo_prev_y, odo_prev_a = ox, oy, oa
 
-            estimated_pose = localization(global_map, cur_x, cur_y, cur_a) 
+            cur_x = math.cos(ra) * odo_u - math.sin(ra) * odo_v + rx
+            cur_y = math.sin(ra) * odo_u + math.cos(ra) * odo_v + ry
+            cur_a = odo_th + ra
+            print(f"オドメトリ更新値 {cur_x} {cur_y} {cur_a} {odo_u} {odo_v} {odo_th}")
+
+            estimated_pose, success_flag, valid_count = localization(global_map, cur_x, cur_y, cur_a) 
+            ave_valid_count = 0.5*(ave_valid_count + valid_count)
+            # 強制的にオドメトリ値にする場合
+            # estimated_pose = [cur_x, cur_y, cur_a]
+
             rx, ry, ra = estimated_pose # 現在姿勢
             DT = time.time() - s
             print(f"Localization time: {DT}")
-            # search_result_path = f"search_result/search_result_{loop_counter}.txt"
-            # with open(search_result_path, "w") as file:
-            #     for val in searched_pose_list:
-            #         file.write(f"{val[0]} {val[1]} {val[2]} {val[3]}\n")
-            #         # val[0-2] xya
-            #         # val[3] eval
-            # est_file.write(f"{rx} {ry} {ra} {searched_pose_list[-1][3]} {ts}\n") 
-            """
-            searched_pose_list_np = np.array(searched_pose_list)
-            de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
-            dx = cur_x - prev_odo_x
-            dy = cur_y - prev_odo_y
-            da = cur_a - prev_odo_a 
-            dist = math.sqrt(dx**2 + dy**2)
-            vt = dist / DT
-            wt = abs(da / DT)
-            if vt < 0.02:
-                vt = 0.02
-            if wt < 0.05:
-                wt = 0.05
-            odo_cov_matrix = np.eye(3)
-            odo_cov_matrix[0, 0] = 0.01 * vt*vt
-            odo_cov_matrix[1, 1] = 0.05 * vt*vt
-            odo_cov_matrix[2, 2] = 0.5 * wt*wt
-            # 状態ベクトル
-            x_odo = np.array([cur_x, cur_y, cur_a])
-            x_scan = np.array([rx, ry, ra])
-            # カルマンゲインの計算
-            K = odo_cov_matrix @ np.linalg.inv(odo_cov_matrix + de_cov_matrix)
-            # センサフュージョン
-            x_fused = x_odo + K @ (x_scan - x_odo)
-            # 共分散行列の更新
-            I = np.eye(3)
-            P_fused = (I - K) @ odo_cov_matrix
+            search_result_path = f"{STORE_ROOT_DIR_NAME}/search_result/search_result_{loop_counter}.txt"
+            with open(search_result_path, "w") as file:
+                for val in searched_pose_list:
+                    file.write(f"{val[0]} {val[1]} {val[2]} {val[3]}\n")
+                    # val[0-2] xya
+                    # val[3] eval
+            est_file.write(f"{rx} {ry} {ra} {searched_pose_list[-1][3]} {ts} {success_flag} {ave_valid_count}\n") 
+            if 0:
+                searched_pose_list_np = np.array(searched_pose_list)
+                de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
+                dist = ou
+                vt = dist / DT
+                wt = abs(oth / DT)
+                if vt < 0.02:
+                    vt = 0.02
+                if wt < 0.05:
+                    wt = 0.05
+                odo_cov_matrix = np.eye(3)
+                odo_cov_matrix[0, 0] = 0.01 * vt*vt
+                odo_cov_matrix[1, 1] = 0.05 * vt*vt
+                odo_cov_matrix[2, 2] = 0.5 * wt*wt
+                # 状態ベクトル
+                x_odo = np.array([cur_x, cur_y, cur_a])
+                x_scan = np.array([rx, ry, ra])
+                # カルマンゲインの計算
+                K = odo_cov_matrix @ np.linalg.inv(odo_cov_matrix + de_cov_matrix)
+                # センサフュージョン
+                x_fused = x_odo + K @ (x_scan - x_odo)
+                # 共分散行列の更新
+                I = np.eye(3)
+                P_fused = (I - K) @ odo_cov_matrix
 
-            print("融合後の位置:", x_fused)
-            print("融合後の共分散行列:\n", P_fused)
+                print("融合後の位置:", x_fused)
+                print("融合後の共分散行列:\n", P_fused)
 
-            prev_odo_x = cur_x 
-            prev_odo_y = cur_y
-            prev_odo_a = cur_a
-
-            rx = x_fused[0]
-            ry = x_fused[1]
-            ra = x_fused[2]
-            """
+                rx = x_fused[0]
+                ry = x_fused[1]
+                ra = x_fused[2]
 
             loop_counter += 1
 
@@ -573,14 +658,15 @@ try:
             #print(f"Drawing Global map time (Python): {time.time()-s}")
             #s = time.time()
             img_disp = copy.deepcopy(global_map)
-            # 描画をcppで実行しても，速度差はない
-            map_info = lidar_draw.MapInfo()
-            map_info.originX = mapInfo.originX
-            map_info.originY = mapInfo.originY
-            map_info.csize = mapInfo.csize
-            color_hex = "#FFFFFF"  # White
-            lidar_draw.draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, map_info, start_angle, end_angle, step_angle, color_hex)
-            cv2.imshow("GlobalMap", img_disp)
+            if len(urg_data) > 0:
+                # 描画をcppで実行しても，速度差はない
+                map_info = lidar_draw.MapInfo()
+                map_info.originX = mapInfo.originX
+                map_info.originY = mapInfo.originY
+                map_info.csize = mapInfo.csize
+                color_hex = "#FFFFFF"  # White
+                lidar_draw.draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, map_info, start_angle, end_angle, step_angle, color_hex)
+            #cv2.imshow("GlobalMap", img_disp)
 
             # Get & Show LiDAR data
             #success, urg_data = urg.one_shot()
@@ -678,9 +764,41 @@ try:
                 target_a = 0.0
                 robot_a = 0.0
 
+            #img_disp_color = cv2.cvtColor(img_disp, cv2.COLOR_GRAY2BGR)
+            img_disp_color = img_disp
             if NAVI:
-                v, w, target_r, target_a, robot_a, wp_index = get_navigation_cmd(estimated_pose, wp_list, wp_index)
+                v, w, target_r, target_a, wp_index, estimated_pose = get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map)
+                # Get control command from MPC
+                # 以下はうまくいっていない
+                if 0:
+                    x_ref = casadi.DM([target_r*cos(target_a), target_r*sin(target_a),  robot_a])
+                    u_ref = casadi.DM([0, 0])
+                    K = 10
+                    T = 2
+                    x_init = casadi.DM([0, 0, 0])   # 常に現在のロボット座標系からスタートする
+                    mpc = MPC.MPCController(x_ref, u_ref, K, T)
+                    x0 = casadi.DM.zeros(mpc.total_vars)
+                    x_current = x_init
+                    u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
+                    v, w = u_opt
+                    #md.send_vw(fd, u_opt[0], u_opt[1])
                 md.send_vw(fd, v, w)
+                # wp_listを表示
+                for wp in wp_list:
+                    x, y = wp
+                    ix = int( x/mapInfo.csize + mapInfo.originX)
+                    iy = int(-y/mapInfo.csize + mapInfo.originY)
+                    cv2.circle(img_disp_color, (ix, iy), 10, (255, 0, 0), 2, cv2.LINE_AA)
+                # ターゲットのwp
+                tx, ty = wp_list[wp_index]
+                ix = int( tx/mapInfo.csize + mapInfo.originX)
+                iy = int(-ty/mapInfo.csize + mapInfo.originY)
+                cv2.circle(img_disp_color, (ix, iy), 20, (255, 0, 0), -1, cv2.LINE_AA)
+                # 推定座標
+                ix = int( rx/mapInfo.csize + mapInfo.originX)
+                iy = int(-ry/mapInfo.csize + mapInfo.originY)
+                cv2.circle(img_disp_color, (ix, iy), 40, (0, 255, 0), 5, cv2.LINE_AA)
+
             else:
                 # Get control command from MPC
                 x_ref = casadi.DM([target_r*cos(target_a), target_r*sin(target_a),  robot_a])
@@ -722,10 +840,73 @@ try:
             #    p_origin = p_origin/p_origin[2]
             #    cv2.circle(frame, (int(p_origin[0]), int(p_origin[1])), 2, (0, 0, 255), -1)
             #cv2.imshow('Capture image', frame)
+            
+            # カメラ画像と地図画像を統合する
+            img_integrated = np.zeros((height_img_disp_color, width_img_disp_color + width, 3), dtype=np.uint8)
+            img_integrated[0:height_img_disp_color, 0:width_img_disp_color] = img_disp_color
+            img_integrated[0:height, width_img_disp_color:width_img_disp_color+width] = frame
+            # 日付
+            ts = time.time()  # 現在のタイムスタンプ
+            dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
+            text_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+            # タイムスタンプの取得
+            text_ts = str(f"ts:{int((ts*1e3))}")
+            text_pose = str(f"x:{rx:.3f} y:{ry:.3f} a:{ra*180/np.pi:.1f}[deg]")
+            text_travel = str(f"travel:{odo_travel:.1f}[m]")
+            text_vw = str(f"v:{v:.2f}[m/s] w:{w*180/np.pi:.1f}[deg/s]")
+            # フォント設定
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 5
+            font_thickness = 2
+            text_color = (255, 255, 255)  # 白
+
+            # テキストのサイズを取得
+            (text_width, text_height), _ = cv2.getTextSize(text_ts, font, 2, font_thickness)
+            # 右下の座標を決定（余白 10 ピクセルを確保）
+            x = img_integrated.shape[1] - text_width - 10
+            y = img_integrated.shape[0] - 20  # 下端から 50 ピクセル上
+            # テキストを描画
+            cv2.putText(img_integrated, text_ts, (x, y), font, 2, text_color, font_thickness)
+
+            # テキストのサイズを取得
+            (text_width, text_height), _ = cv2.getTextSize(text_date, font, font_scale, font_thickness)
+            # 右下の座標を決定（余白 10 ピクセルを確保）
+            x = img_integrated.shape[1] - text_width - 10
+            y = img_integrated.shape[0] - 210  # 下端から 10 ピクセル上
+            # テキストを描画
+            cv2.putText(img_integrated, text_date, (x, y), font, font_scale, text_color, font_thickness)
+
+            # テキストのサイズを取得
+            (text_width, text_height), _ = cv2.getTextSize(text_pose, font, font_scale, font_thickness)
+            # 右下の座標を決定（余白 10 ピクセルを確保）
+            x = img_integrated.shape[1] - text_width - 10
+            y = img_integrated.shape[0] - 410  # 下端から 50 ピクセル上
+            # テキストを描画
+            cv2.putText(img_integrated, text_pose, (x, y), font, font_scale, text_color, font_thickness)
+
+            # テキストのサイズを取得
+            (text_width, text_height), _ = cv2.getTextSize(text_travel, font, font_scale, font_thickness)
+            # 右下の座標を決定（余白 10 ピクセルを確保）
+            x = img_integrated.shape[1] - text_width - 10
+            y = img_integrated.shape[0] - 610  # 下端から 50 ピクセル上
+            # テキストを描画
+            cv2.putText(img_integrated, text_travel, (x, y), font, font_scale, text_color, font_thickness)
+
+            # テキストのサイズを取得
+            (text_width, text_height), _ = cv2.getTextSize(text_vw, font, font_scale, font_thickness)
+            # 右下の座標を決定（余白 10 ピクセルを確保）
+            x = img_integrated.shape[1] - text_width - 10
+            y = img_integrated.shape[0] - 810  # 下端から 50 ピクセル上
+            # テキストを描画
+            cv2.putText(img_integrated, text_vw, (x, y), font, font_scale, text_color, font_thickness)
+
+            out.write(img_integrated)
+            cv2.imshow("GlobalMap", img_integrated)
 
             cv2.waitKey(5)
             pygame.time.wait(10)
 
+    
 except KeyboardInterrupt:
     print("Pressed Ctrl + C")
     print("Shutting down now...")
@@ -740,6 +921,8 @@ finally:
     blv_odometory_thread.join()
     lidar_measurement_thread.join()
     camera_thread.join()
+    out.release()
+    print(f"動画が保存されました: {output_file}")
     #lidar_m_measurement_thread.join()
     #lidar_b_measurement_thread.join()
     cleanup(fd, urg, md)
