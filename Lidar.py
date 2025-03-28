@@ -138,6 +138,7 @@ class Urg:
                     except ValueError:
                         print(f"変換エラー: '{combined_binary_24bit_i}' は2進数として無効です。")
                         intensity = 0  # デフォルト値を設定（適宜変更）
+                        r = 60000 # rも怪しいので不正な値を表す
                     index = i//6
                     urg_data.append((index, r, intensity))
                 else:
@@ -220,23 +221,54 @@ def cmd_MD(ser_dev):
     return False, head, []
 
 def cmd_ME(ser_dev):
-    # MDコマンドを送信（距離データの取得）
-    ser_dev.write(b'ME0000108001101\n')
-    #ser_dev.write(b'MD0044072501101\n') # for Classic URG
-    # 応答を読み取る
-    head = []
-    data = []
-    for _ in range(6):
-        response = ser_dev.read_until().decode('utf-8')
-        head.append(remove_semicolon_followed_by_char(response))
-    LOOP_NUM_FOR_READ = 103  # Classic URGでは33
-    for _ in range(LOOP_NUM_FOR_READ):
-        response = ser_dev.read_until().decode('utf-8')
-        response = response.rstrip('\n')
-        data.append(response)
-    if len(head) > 0:
-        return True, head, data
-    return False, head, []
+    try:
+        # MDコマンドを送信（距離データの取得）
+        ser_dev.write(b'ME0000108001101\n')
+        #ser_dev.write(b'MD0044072501101\n') # for Classic URG
+        # 応答を読み取る
+        head = []
+        data = []
+        for _ in range(6):
+            response = ser_dev.read_until().decode('utf-8')
+            if len(response) < 1:
+                return False, [], []
+            head.append(remove_semicolon_followed_by_char(response))
+        LOOP_NUM_FOR_READ = 103  # Classic URGでは33
+        for _ in range(LOOP_NUM_FOR_READ):
+            response = ser_dev.read_until().decode('utf-8')
+            response = response.rstrip('\n')
+            data.append(response)
+        if len(head) > 0:
+            return True, head, data
+        return False, head, []
+    except serial.SerialException as e:
+        print(f"SerialException: {e}")
+        return False, [], []  # シリアル通信エラー（ポート未接続・断線など）
+    except serial.SerialTimeoutException:
+        print(f"SefialTimeoutException: {e}")
+        return False, [], []  # タイムアウト（デバイスが応答しない）
+
+#def cmd_ME(ser_dev):
+#    # MDコマンドを送信（距離データの取得）
+#    ser_dev.write(b'ME0000108001101\n')
+#    #ser_dev.write(b'MD0044072501101\n') # for Classic URG
+#    # 応答を読み取る
+#    head = []
+#    data = []
+#    # ヘッダを6行分読み取る
+#    for _ in range(6):
+#        response = ser_dev.read_until().decode('utf-8').strip()
+#        if not response:  # 空なら失敗
+#            return False, [], []
+#        head.append(remove_semicolon_followed_by_char(response))
+#    LOOP_NUM_FOR_READ = 103  # Classic URGでは33
+#    # データを LOOP_NUM_FOR_READ 行読み取る
+#    for _ in range(LOOP_NUM_FOR_READ):
+#        response = ser_dev.read_until().decode('utf-8').strip()
+#        if not response:  # 空なら失敗
+#            return False, head, []
+#        data.append(response)
+#    return True, head, data
 
 def index2angle(index):
     return (index + 0) * 360/1440.0 - 135.0
