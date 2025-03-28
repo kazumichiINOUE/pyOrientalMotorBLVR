@@ -45,7 +45,7 @@ import MPC
 NAVI = True # enable navigation
 #NAVI = False # disable navigation
 
-STORE_ROOT_DIR_NAME = "experiment_250328-1"
+STORE_ROOT_DIR_NAME = "experiment_250328-2"
 if Path(STORE_ROOT_DIR_NAME).exists():
     print(f"'{STORE_ROOT_DIR_NAME}' exists.")
     print("Do you want to continue? y/[n] ", end="", flush=True)
