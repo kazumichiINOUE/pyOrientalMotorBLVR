@@ -420,7 +420,7 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     else:
         v = 0
     w = 0.5*delta_th
-    print(f"v:{v}, w:{w:.3f}, x:{x:.3f}, y:{y:.3f}, a:{a:.3}, wx:{wx}, wx:{wy}, dist:{target_r:.3f}, th:{delta_th:.3f}")
+    print(f"v:{v:.3f}, w[deg/s]:{w*180/np.pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/np.pi:.3f}, wx:{wx:.3f}, wx:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/np.pi:.1f}")
     return v, w, target_r, delta_th, wp_index, estimated_pose
 
 try:
@@ -555,7 +555,7 @@ try:
             cur_x = math.cos(ra) * odo_u - math.sin(ra) * odo_v + rx
             cur_y = math.sin(ra) * odo_u + math.cos(ra) * odo_v + ry
             cur_a = odo_th + ra
-            print(f"オドメトリ更新値 {cur_x} {cur_y} {cur_a} {odo_u} {odo_v} {odo_th}")
+            print(f"オドメトリ更新値 {cur_x:.3f} {cur_y:.3f} {cur_a*180/np.pi:.1f} {odo_u:.3f} {odo_v:.3f} {odo_th*180/np.pi:.1f}")
 
             estimated_pose, success_flag, valid_count = localization(global_map, cur_x, cur_y, cur_a) 
             ave_valid_count = 0.5*(ave_valid_count + valid_count)
@@ -564,7 +564,7 @@ try:
 
             rx, ry, ra = estimated_pose # 現在姿勢
             DT = time.time() - s
-            print(f"Localization time: {DT}")
+            print(f"Localization time: {DT:.3f}")
             search_result_path = f"{STORE_ROOT_DIR_NAME}/search_result/search_result_{loop_counter}.txt"
             with open(search_result_path, "w") as file:
                 for val in searched_pose_list:
