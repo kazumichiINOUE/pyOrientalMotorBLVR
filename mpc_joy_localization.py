@@ -416,7 +416,8 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
             estimated_pose = checked_pose
 
     if target_r > 0.5:
-        v = 0.45
+        v = 0.5
+        #v = 0.45
     else:
         v = 0
     w = 0.5*delta_th
