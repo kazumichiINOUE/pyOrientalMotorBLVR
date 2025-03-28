@@ -648,6 +648,8 @@ try:
                 #print("3ボタンが押されています")
             elif button_pressed_shutdown: # Shutdown
                 print("Pressed Stop button")
+                md.send_vw(fd, 0, 0)
+                time.sleep(1)
                 stop_thread = True
                 blv_odometory_thread.join()
                 lidar_measurement_thread.join()
@@ -656,8 +658,26 @@ try:
                 #lidar_b_measurement_thread.join()
                 break
             elif button_pressed_mapping:
-                print("Mapを更新します")
-                map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
+                print("Pause...")
+                md.send_vw(fd, 0, 0)
+                time.sleep(5)
+                while True:
+                    pygame.time.wait(10)
+                    #button_pressed_mapping = joystick.get_button(NUM_JOY_MAPPING)
+                    #if button_pressed_mapping:
+                    #    break
+                    #else:
+                    #    print("Pause...")
+                    BRAKE_FLAG = False
+                    for event in pygame.event.get():
+                        if event.type == pygame.JOYBUTTONDOWN:
+                            if event.button == NUM_JOY_MAPPING:
+                                BRAKE_FLAG = True
+                                break
+                    if BRAKE_FLAG:
+                        break
+                # print("Mapを更新します")
+                #map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
             else:
                 # joypadの入力がない場合は，現在位置を目標値点としたmpcを行う
                 target_r = 0.0
