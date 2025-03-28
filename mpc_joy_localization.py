@@ -94,7 +94,6 @@ else:
     # サブディレクトリの作成
     for subdir in SUBDIRS:
         os.makedirs(os.path.join(STORE_ROOT_DIR_NAME, subdir), exist_ok=True)
-        os.makedirs(os.path.join(STORE_ROOT_DIR_NAME, subdir), exist_ok=True)
     print(f"{STORE_ROOT_DIR_NAME}は作成しました．")
     print("global_map, wp_list.txtを作成してから実行してください")
     exit()
