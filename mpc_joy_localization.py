@@ -303,20 +303,19 @@ def draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, mapInfo):
         print(d_values)
     return img_disp
 
-cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
+cap = cv2.VideoCapture(1)  # '0' は内蔵カメラ
 frame = None
 ret = False
 def image_writer():
-    pass
-    #global ret, frame
-    #dir_name = datetime.now().strftime("%y%m%d")
-    #dir_name += "_images"
-    #os.makedirs(dir_name, exist_ok=True)
-    #while not stop_thread:
-    #    ts = int(time.time() * 1e3)
-    #    ret, frame = cap.read()
-    #    cv2.imwrite(f"./{dir_name}_images/{ts}.png", frame)
-    #    time.sleep(1.0)
+    global ret, frame
+    dir_name = datetime.now().strftime("%y%m%d")
+    dir_name += "_images"
+    os.makedirs(dir_name, exist_ok=True)
+    while not stop_thread:
+        ts = int(time.time() * 1e3)
+        ret, frame = cap.read()
+        #cv2.imwrite(f"./{dir_name}_images/{ts}.png", frame)
+        time.sleep(1.0)
 
 def get_wp_list():
     #wp_list = []
