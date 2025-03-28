@@ -66,11 +66,12 @@ if Path(STORE_ROOT_DIR_NAME).exists():
                 if os.path.isfile(file_path):  # ファイルなら削除
                     os.remove(file_path)
                     print(f"Deleted: {file_path}")
-
+            print("✅ Delete existing log files")
         # 必要なファイルが存在するか確認
         else:
             # search_resultが無ければ作成
             os.makedirs(subdir, exist_ok=True)
+            print(f"✅ make {subdir}")
 
         if os.path.isdir(os.path.join(STORE_ROOT_DIR_NAME, "global_map")):
             print("✅ exist global_map")
@@ -97,8 +98,6 @@ else:
     print(f"{STORE_ROOT_DIR_NAME}は作成しました．")
     print("global_map, wp_list.txtを作成してから実行してください")
     exit()
-
-#exit()
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -186,10 +185,6 @@ odo_rotation = 0
 urg_data = []
 #urg_m_data = []
 #urg_b_data = []
-
-#cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
-#frame = ""
-#ret = False
 
 stop_thread = False
 def blv_odometory_fd(fd):
@@ -305,8 +300,6 @@ def eval_simple_func(pose, global_map, mapInfo, start_angle, end_angle, angle_st
 
 def matches_simple(points, global_map, mapInfo):
     height, width = global_map.shape[:2]  # 先頭2要素を取得
-    #height = len(global_map)
-    #width = len(global_map[0])
     # NumPy配列に変換
     points = np.array(points)
     # x, y 座標の変換をベクトル化
@@ -391,33 +384,6 @@ def image_writer():
         time.sleep(1.0)
 
 def get_wp_list():
-    #wp_list = []
-    """
-    # 研究室入り口前
-    wp_list.append([5, 0.0, 0])
-    wp_list.append([5, -3, -np.pi/2])
-    wp_list.append([-3, -3, -np.pi])
-    wp_list.append([-3, 0, np.pi/2])
-    wp_list.append([0, 0, 0])
-    """
-    # 研究室前〜D棟周回コース
-    """
-    wp_list.append([5, 0.0, 0])
-    wp_list.append([12.0, -1.0, 0])
-    wp_list.append([11.5, -15.0, -np.pi/2])
-    wp_list.append([11.5, -30.0, -np.pi/2])
-    wp_list.append([11.0, -50.0, -np.pi/2])
-    wp_list.append([12.0, -77.0, -np.pi/2])
-    wp_list.append([44.0, -76.0, 0])
-    wp_list.append([43.5, -56.0, np.pi/2])
-    wp_list.append([43.5, -48.0, np.pi/2])
-    wp_list.append([49.5, -41.5, 45*np.pi/180])
-    wp_list.append([55.5, -35.0, np.pi/2])
-    #wp_list.append([55.5, -3.0, np.pi])
-    #wp_list.append([-3, -3.0, np.pi])
-    #wp_list.append([0, 0, 0])
-    """
-
     wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
     wp_list = []
     with open(wp_filepath, 'r') as file:
@@ -486,10 +452,6 @@ try:
     width = config.map.window_width
     csize = config.map.csize
     img_org = make_img_org(height, width, config.map.color.bg, config.map.color.axis, csize)
-    #img = copy.deepcopy(img_org)
-    #map = copy.deepcopy(img_org)
-    #cv2.imshow("LiDAR", img)
-    #cv2.imshow("Map", map)
     global_map = cv2.imread(f"{STORE_ROOT_DIR_NAME}/global_map/rebuild_opt.png")
     cv2.imshow("GlobalMap", global_map)
 
@@ -565,10 +527,6 @@ try:
     rx = 0
     ry = 0
     ra = 0
-    # 最初の地図は強制的に登録する
-    #success, urg_data = urg.one_shot_intensity()
-    #if success:
-    #map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
     ########################################
     # Main loop start
@@ -666,12 +624,6 @@ try:
                 map_info.csize = mapInfo.csize
                 color_hex = "#FFFFFF"  # White
                 lidar_draw.draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, map_info, start_angle, end_angle, step_angle, color_hex)
-            #cv2.imshow("GlobalMap", img_disp)
-
-            # Get & Show LiDAR data
-            #success, urg_data = urg.one_shot()
-            #if success:
-            #img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
 
             # Get joystick status
             for event in pygame.event.get():
@@ -743,11 +695,6 @@ try:
                 time.sleep(5)
                 while True:
                     pygame.time.wait(10)
-                    #button_pressed_mapping = joystick.get_button(NUM_JOY_MAPPING)
-                    #if button_pressed_mapping:
-                    #    break
-                    #else:
-                    #    print("Pause...")
                     BRAKE_FLAG = False
                     for event in pygame.event.get():
                         if event.type == pygame.JOYBUTTONDOWN:
@@ -756,8 +703,6 @@ try:
                                 break
                     if BRAKE_FLAG:
                         break
-                # print("Mapを更新します")
-                #map, _ = draw_lidar_on_img(img_org, urg_data, cs, sn)
             else:
                 # joypadの入力がない場合は，現在位置を目標値点としたmpcを行う
                 target_r = 0.0
