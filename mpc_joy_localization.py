@@ -328,6 +328,7 @@ def get_wp_list():
     wp_list.append([0, 0, 0])
     """
     # 研究室前〜D棟周回コース
+    """
     wp_list.append([5, 0.0, 0])
     wp_list.append([12.0, -1.0, 0])
     wp_list.append([11.5, -15.0, -np.pi/2])
@@ -342,53 +343,47 @@ def get_wp_list():
     #wp_list.append([55.5, -3.0, np.pi])
     #wp_list.append([-3, -3.0, np.pi])
     #wp_list.append([0, 0, 0])
+    """
+
+    wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
+    wp_list = []
+    with open(wp_filepath, 'r') as file:
+        for line in file:
+            parts = line.strip().split(',')
+            x = float(parts[0])
+            y = float(parts[1])
+            wp_list.append([x, y])
 
     return wp_list
     #with open(wp_fname, "r") as file:
 
-def get_navigation_cmd(estimated_pose, wp_list, wp_index):
+def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     x, y, a = estimated_pose
-    wx, wy, wa = wp_list[wp_index]
-    d = math.sqrt((wx - x)**2 + (wy - y)**2)
-    da = wa - a     # wpに指定された方向と現在の方向の差
+    wx, wy = wp_list[wp_index]
+    target_r = math.sqrt((wx - x)**2 + (wy - y)**2)
     delta_th = math.atan2(wy-y, wx-x) - a # 現在の方向を基準にした，wpまでの方向差
     if delta_th > np.pi:
         delta_th -= 2*np.pi
     elif delta_th < -np.pi:
         delta_th += 2*np.pi
-    if da > np.pi:
-        da -= 2*np.pi
-    elif da < -np.pi:
-        da += 2*np.pi
-    #if d < 1.0 and abs(da) < 15*np.pi/180:
-    if d < 1.0:
+    # WPの到達判定
+    if target_r < 1.0:
         wp_index += 1
-        wx, wy, wa = wp_list[wp_index]
+        wx, wy = wp_list[wp_index]
         md.send_vw(fd, 0, 0)
         time.sleep(2.0)
-    target_r = d
-    target_a = np.atan2(wy - y, wx - x)
-    if target_a > np.pi:
-        target_a -= 2*np.pi
-    elif target_a < -np.pi:
-        target_a += 2*np.pi
-    if da > 0:
-        target_a = -target_a
+        # WP到達毎に自己推定の再確認をする
+        checked_pose, success_flag, valid_count = localization(global_map, x, y, a) 
+        if success_flag:
+            estimated_pose = checked_pose
 
-    robot_a = wa
     if target_r > 0.5:
-        v = 0.4
+        v = 0.45
     else:
         v = 0
-    if target_a > 5*np.pi/180:
-        w = target_a
-    elif target_a < -5*np.pi/180:
-        w = target_a
-    else:
-        w = 0
     w = 0.5*delta_th
-    print(f"{v}, {w:.3f}, {x:.3f}, {y:.3f}, {wx}, {wy}, {target_r:.3f}, {target_a:.3f}")
-    return v, w, target_r, target_a, robot_a, wp_index
+    print(f"v:{v}, w:{w:.3f}, x:{x:.3f}, y:{y:.3f}, a:{a:.3}, wx:{wx}, wx:{wy}, dist:{target_r:.3f}, th:{delta_th:.3f}")
+    return v, w, target_r, delta_th, wp_index, estimated_pose
 
 try:
     # Initialize Oriental motor BLV-R 
