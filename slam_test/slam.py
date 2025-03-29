@@ -148,17 +148,19 @@ def calc_Hmat(robot_pose, gridmap, start_angle, end_angle, angle_step, ranges, i
                   [eval_fxa, eval_fya, eval_faa]])
     return H
 
-def slam_process(enclog_data, urglog_data, gridmap, poses):
-    # MP4動画に保存する処理
+def video_writer(output_file, gridmap):
     # 動画ライターの設定
-    output_file = "slam_output.mp4"
     frame_height, frame_width, _ = gridmap.gmap.shape
     print(frame_height, frame_width)
 
     fps = 30  # フレームレート
     # MP4動画に保存準備
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # コーデック指定
-    out = cv2.VideoWriter(output_file, fourcc, fps, (frame_height, frame_width))
+    fourcc = cv2.VideoWriter_fourcc(*'H264')  # コーデック指定
+    return cv2.VideoWriter(output_file, fourcc, fps, (frame_height, frame_width))
+
+def slam_process(enclog_data, urglog_data, gridmap, poses):
+    # MP4動画に保存する処理
+    video_out = video_writer("slam_output.mp4", gridmap)
 
     time_diff_enc_urg = 50 # msec
 
@@ -224,7 +226,7 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
 
         rotated_img = cv2.rotate(img_disp_color, cv2.ROTATE_90_COUNTERCLOCKWISE)
         #rotated_img = cv2.cvtColor(rotated_img, cv2.COLOR_GRAY2BGR)
-        out.write(rotated_img)
+        video_out.write(rotated_img)
         cv2.imshow("gmap", img_disp_color)
         cv2.waitKey(5)
 
@@ -239,8 +241,8 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         #except np.linalg.LinAlgError:
         #    print("ヘッセ行列は逆行列を持ちません。")
 
-    out.release()
-    print(f"動画が保存されました: {output_file}")
+    video_out.release()
+    print(f"動画が保存されました")
     print("done")
     draw_poses_gmap = gridmap.draw_poses(robot_poses)
     cv2.imshow("gmap", draw_poses_gmap)
