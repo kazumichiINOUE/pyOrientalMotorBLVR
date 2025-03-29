@@ -208,7 +208,8 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose)
         gridmap.update_gridmap(points)
         #gridmap.update_intensity(points, robot_pose)
-        robot_poses.append([urg_timestamp, robot_pose[0], robot_pose[1], robot_pose[2]])
+        robot_poses.append([urg_timestamp, *robot_pose])
+        #robot_poses.append([urg_timestamp, robot_pose[0], robot_pose[1], robot_pose[2]])
 
         # 各ロボット座標に対して描画
         img_disp = copy.deepcopy(gridmap.gmap)
@@ -374,17 +375,22 @@ def init_gridmap(xmin = -5.0, ymin = -5.0, xmax = 5.0, ymax = 5.0, csize = 0.05)
     
 # メイン処理
 if __name__ == "__main__":
-    enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
-    urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
+    #enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
+    #urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
 
+    enc_filepath = "./250327-2/enclog"  # enclogファイルのパス
+    urg_filepath = "./250327-2/urglog"  # urglogファイルのパス
     # データの読み込み
     enclog_data = load_enclog(enc_filepath)  
     urglog_data = load_urglog(urg_filepath)
-    minX = -25.0
-    minY = -100.0
-    maxX =  80.0
-    maxY =  25.0
-    csize = 0.025
+
+    # D棟周回
+    if 0:
+        minX = -25.0
+        minY = -100.0
+        maxX =  80.0
+        maxY =  25.0
+        csize = 0.025
 
     #minX = -15.0
     #minY = -15.0
@@ -398,25 +404,17 @@ if __name__ == "__main__":
     #maxY = 15.0
     #csize = 0.025
 
-    #minX = -75.0
-    #minY = -120.0
-    #maxX = 75.0
-    #maxY = 35.0
-    #csize = 0.025
+    # 体育館〜D棟周回
+    minX = -75.0
+    minY = -160.0
+    maxX = 75.0
+    maxY = 35.0
+    csize = 0.025
 
     # gridmap を初期化
     #gridmap = init_gridmap(xmin = -35.0, ymin = -20.0, xmax = 35.0, ymax = 55.0, csize = 0.025)
     gridmap = init_gridmap(minX, minY, maxX, maxY, csize)
 
-    with open("./mapInfo.yaml", "w") as file:
-        file.write(f"originX: {gridmap.originX}\n")
-        file.write(f"originY: {gridmap.originY}\n")
-        file.write(f"csize: {csize}\n")
-        file.write(f"minX: {minX}\n")
-        file.write(f"minY: {minY}\n")
-        file.write(f"maxX: {maxX}\n")
-        file.write(f"maxY: {maxY}\n")
-        file.write(f"margin: 50\n")
     with open("./mapInfo.lua", "w") as file:
         file.write("local mapInfo = {\n")
         file.write(f"\toriginX = {gridmap.originX},\n")
@@ -432,17 +430,17 @@ if __name__ == "__main__":
 
     # SLAM処理を実行して最適化されたマップデータを取得
     s = time.time()
-    poses = [(0, 0, 0)]
+    poses = [(0, 0, 0)] # SLAM開始時点の初期姿勢
     gridmap, poses = slam_process(enclog_data, urglog_data, gridmap, poses)
-    print(time.time()-s)
+    print(f"Executed Time: {time.time()-s}")
 
     cv2.imshow("gmap", gridmap.gmap)
     cv2.imwrite("opt.png", gridmap.gmap)
     with open("robot_poses.txt", "w") as file:
         for p in poses:
             file.write(f"{p[0]} {p[1]} {p[2]} {p[3]}\n")
-    #cv2.waitKey()
-
+    cv2.waitKey()
+    
     # 全ての処理が完了したら，intensity_grid_map を可視化する
     #intensity_grid_map = np.zeros_like(gridmap.gmap)
     #intensity_grid_map = cv2.cvtColor(intensity_grid_map, cv2.COLOR_GRAY2BGR)
@@ -519,52 +517,19 @@ if __name__ == "__main__":
     #    plt.show()
     #exit()
     
-    # グレースケールに変換
-    gray = cv2.cvtColor(intensity_grid_map, cv2.COLOR_BGR2GRAY)
-    # 背景（黒）を基準に図形を囲むバウンディングボックスを計算
-    _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)  # 黒背景以外を白にする
-    x, y, w, h = cv2.boundingRect(thresh)  # バウンディングボックスを取得
+    ## グレースケールに変換
+    #gray = cv2.cvtColor(intensity_grid_map, cv2.COLOR_BGR2GRAY)
+    ## 背景（黒）を基準に図形を囲むバウンディングボックスを計算
+    #_, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)  # 黒背景以外を白にする
+    #x, y, w, h = cv2.boundingRect(thresh)  # バウンディングボックスを取得
     
-    # バウンディングボックスで画像をトリミング
-    trimmed_image = intensity_grid_map[y:y+h, x:x+w]
+    ## バウンディングボックスで画像をトリミング
+    #trimmed_image = intensity_grid_map[y:y+h, x:x+w]
     
-    # 拡大倍率 (例: 2倍)
-    scale = 4
-    new_size = (int(trimmed_image.shape[1] * scale), int(trimmed_image.shape[0] * scale))
-    # 画像を拡大
-    resized_image = cv2.resize(trimmed_image, new_size, interpolation=cv2.INTER_NEAREST)
-    cv2.imshow("intensity_grid_map", resized_image)
-    cv2.waitKey()
-
-"""
-if __name__ == "__main__":
-    import cProfile
-    import pstats
-    with cProfile.Profile() as pr:
-        # メイン処理を実行
-        enc_filepath = "enclog"  # enclogファイルのパス
-        urg_filepath = "urglog"  # urglogファイルのパス
-
-        # データの読み込み
-        enclog_data = load_enclog(enc_filepath)  
-        urglog_data = load_urglog(urg_filepath)
-
-        # gridmap を初期化
-        gridmap = init_gridmap(xmin = -35.0, ymin = -20.0, xmax = 35.0, ymax = 35.0, csize = 0.025)
-
-        start = time.time()
-        # SLAM処理を実行して最適化されたマップデータを取得
-        poses = [(0, 0, 0)]
-        gridmap = slam_process(enclog_data, urglog_data, gridmap, poses)
-        #print(time.time() - start)
-
-    # プロファイル結果を出力
-    stats = pstats.Stats(pr)
-    stats.strip_dirs()
-    stats.sort_stats('cumtime')  # 累積時間順でソート
-    stats.print_stats(20)  # 上位20件を表示
-
-    cv2.imshow("gmap", gridmap.gmap)
-    cv2.imwrite("opt.png", gridmap.gmap)
-    cv2.waitKey()
-"""
+    ## 拡大倍率 (例: 2倍)
+    #scale = 4
+    #new_size = (int(trimmed_image.shape[1] * scale), int(trimmed_image.shape[0] * scale))
+    ## 画像を拡大
+    #resized_image = cv2.resize(trimmed_image, new_size, interpolation=cv2.INTER_NEAREST)
+    #cv2.imshow("intensity_grid_map", resized_image)
+    #cv2.waitKey()
