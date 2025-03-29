@@ -261,9 +261,9 @@ def optimize_pose_combined(gridmap, urglog_data, robot_pose):
     urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data
 
     # 粗い探索
-    bounds = [(robot_pose[0] - 1.0, robot_pose[0] + 1.0),
-              (robot_pose[1] - 1.0, robot_pose[1] + 1.0),
-              (robot_pose[2] - 40*math.pi/180, robot_pose[2] + 40*math.pi/180)]
+    bounds = [(robot_pose[0] - 0.5, robot_pose[0] + 0.5),
+              (robot_pose[1] - 0.5, robot_pose[1] + 0.5),
+              (robot_pose[2] - 20*math.pi/180, robot_pose[2] + 20*math.pi/180)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
