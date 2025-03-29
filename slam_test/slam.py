@@ -43,7 +43,7 @@ def load_urglog(filepath):
             #    exit(0)
             ranges, intensity = zip(*[(float(parts[7 + i]), float(parts[7 + i + 3])) for i in range(0, data_count, 4)])
             #intensity = [1 for _ in range(1081)] 
-            if count % 5 == 0:
+            if count % 2 == 0:
                 data.append((timestamp, start_angle, end_angle, angle_step, ranges, intensity))
     return data
 
