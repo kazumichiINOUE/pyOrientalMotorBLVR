@@ -368,6 +368,9 @@ class Gridmap():
         #eval = np.sum(generic_filter(self.gmap, self.check_region, size=3, mode='constant', cval=1))
 
         return -eval
+    
+    def gridmap_clear(self):
+        self.gmap = np.full((self.height, self.width, 1), 123, dtype=np.uint8)
 
 def init_gridmap(xmin = -5.0, ymin = -5.0, xmax = 5.0, ymax = 5.0, csize = 0.05):
     gmap = Gridmap(xmin, ymin, xmax, ymax, csize)
