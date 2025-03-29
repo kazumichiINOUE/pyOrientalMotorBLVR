@@ -209,7 +209,6 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         gridmap.update_gridmap(points)
         #gridmap.update_intensity(points, robot_pose)
         robot_poses.append([urg_timestamp, *robot_pose])
-        #robot_poses.append([urg_timestamp, robot_pose[0], robot_pose[1], robot_pose[2]])
 
         # 各ロボット座標に対して描画
         img_disp = copy.deepcopy(gridmap.gmap)
