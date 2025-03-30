@@ -8,6 +8,9 @@ from scipy.ndimage import convolve
 import time
 import copy
 import tkinter as tk
+
+# import gridmap_update  #C++関数．使っていない
+
 STORE_ROOT_DIR_NAME = f"slam_result_250330-2"
 #enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
 #urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
@@ -73,7 +76,10 @@ def convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensit
     ly = ranges * np.sin(angles) 
     gx = x + lx * cos_theta - ly * sin_theta
     gy = y + lx * sin_theta + ly * cos_theta
-
+    #data = np.column_stack((gx, gy, intensity))
+    #for d in data:
+    #    print(d)
+    #exit()
     return np.column_stack((gx, gy, intensity))
 
 def calc_relative_pose(prev, curr):
