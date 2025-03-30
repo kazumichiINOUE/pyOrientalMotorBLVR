@@ -1,13 +1,9 @@
 import numpy as np
 import cv2
 import math
-from scipy.optimize import differential_evolution, minimize
-from scipy.ndimage import generic_filter
-from scipy.ndimage import convolve
-
+from scipy.optimize import differential_evolution
 import time
 import copy
-import tkinter as tk
 
 # import gridmap_update  #C++関数．使っていない
 
