@@ -258,22 +258,25 @@ def eval_simple_func(pose, gridmap, start_angle, end_angle, angle_step, ranges, 
 
 def optimize_pose_combined(gridmap, urglog_data, robot_pose):
     urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data
+    dxy = 0.5
+    da = 10*math.pi/180
 
     # 粗い探索
-    bounds = [(robot_pose[0] - 0.5, robot_pose[0] + 0.5),
-              (robot_pose[1] - 0.5, robot_pose[1] + 0.5),
-              (robot_pose[2] - 20*math.pi/180, robot_pose[2] + 20*math.pi/180)]
+    bounds = [(robot_pose[0] - dxy, robot_pose[0] + dxy),
+              (robot_pose[1] - dxy, robot_pose[1] + dxy),
+              (robot_pose[2] - da, robot_pose[2] + da)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
         args=(gridmap, start_angle, end_angle, angle_step, ranges, intensity),
         strategy='best1bin',
-        popsize=86,     # ベイズ最適化で求めた86よりちょっと高くする
+        popsize=20,     # ベイズ最適化で求めた86よりちょっと高くする
         tol=1e-6,
-        maxiter=50,     # 同じく，38よりちょっと高くする
+        maxiter=15,     # 同じく，38よりちょっと高くする
         workers=1,
         updating='deferred'  # 適応型の更新
     )
+    return result_de.x
 
     # 精度悪い
     #result_da = dual_annealing(
