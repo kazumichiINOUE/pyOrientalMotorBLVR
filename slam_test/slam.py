@@ -204,6 +204,8 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     pu = 0.0
     pv = 0.0
     pa = 0.0
+    de_cov_matrix_list = []
+    cov_diagonal_elements = []
     for i in range(len(urglog_data)):
         urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data[i]
         if len(ranges) != 1081: 
@@ -223,7 +225,26 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
             #print(".", end="", flush=True)
             s = time.time()
             robot_pose = optimize_pose_combined(gridmap, urglog_data[i], robot_pose)
-            print(f"{time.time() - s:.3f} [s] {urg_timestamp} {i}")
+            print(f"optimized {time.time() - s:.3f} [s] {urg_timestamp} {i}")
+            searched_pose_list_np = np.array(searched_pose_list)
+            de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
+            de_cov_matrix_list.append(de_cov_matrix)
+            #print(f"{de_cov_matrix[0,0]:.2f} {de_cov_matrix[1,1]:.2f} {de_cov_matrix[2,2]:.2f}")
+            #print(f"{de_cov_matrix[0,0]:.2f} {de_cov_matrix[1,1]:.2f} {de_cov_matrix[2,2]:.2f}")
+            # 今回のオドメトリによる相対姿勢u, v, a
+            # 今回のDEによる相対姿勢
+            # robot_pose - robot_poses[-1][1:4]
+            rp = calc_relative_pose(robot_poses[-1], [0, *robot_pose])
+            print(u, v, a)
+            print(rp[1:4])
+            cov_diagonal_elements.append([de_cov_matrix[0,0], de_cov_matrix[1,1], de_cov_matrix[2,2], urg_timestamp, *robot_pose, 
+                                         u, v, a, rp[1], rp[2], rp[3]])
+            # 推定した角度変化が10deg以上の場合，ジャンプしすぎていると判断し，オドメトリを使って姿勢更新
+            if abs(rp[3]) > 0.17:
+                print("Corrected pose to odometory.")
+                print(u, v, a, rp[1], rp[2], rp[3])
+                robot_pose = [rx, ry, ra]
+            
         points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose)
         gridmap.update_gridmap(points)
         #gridmap.update_intensity(points, robot_pose)
@@ -277,12 +298,23 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     return gridmap, robot_poses
 
 # 評価関数をグローバルに移動
+searched_pose_list = []
 def eval_simple_func(pose, gridmap, start_angle, end_angle, angle_step, ranges, intensity):
+    global searched_pose_list
     sx, sy, sa = pose
     points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, (sx, sy, sa))
-    return gridmap.matches_simple(points)  # 評価値を反転（最小化のため）
+    N = 100  # 抽出する点の数
+    indices = np.random.choice(points.shape[0], N, replace=False)  # 重複なし
+    points = points[indices]
+    eval = gridmap.matches_simple(points)  # 評価値を反転（最小化のため）
+    searched_pose_list.append([sx, sy, sa, eval])
+    return eval
+
+from scipy.optimize import dual_annealing
 
 def optimize_pose_combined(gridmap, urglog_data, robot_pose):
+    global searched_pose_list
+    searched_pose_list = []
     urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data
     dxy = 0.5
     da = 10*math.pi/180
