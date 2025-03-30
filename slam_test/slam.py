@@ -275,24 +275,32 @@ def optimize_pose_combined(gridmap, urglog_data, robot_pose):
         updating='deferred'  # 適応型の更新
     )
 
-    # 精密な探索
-    bounds = [(result_de.x[0] - 0.2, result_de.x[0] + 0.2),
-              (result_de.x[1] - 0.2, result_de.x[1] + 0.2),
-              (result_de.x[2] - 4 * math.pi/180, result_de.x[2] + 4 * math.pi/180)]
-    result = minimize(
-        eval_simple_func,          
-        result_de.x,                   # 差分進化法の結果を初期値として利用
-        args=(gridmap, start_angle, end_angle, angle_step, ranges, intensity),
-        method='CG',  
-        #method='L-BFGS-B',             # 境界付き最適化
-        #bounds=bounds,                 # 制約を考慮
-        options={
-            'disp': False,              # 結果を表示
-            'maxiter': 500,            # 最大反復回数
-            'ftol': 1e-8               # より高い精度を目指す
-        }
-    )
-    return result.x
+    # 精度悪い
+    #result_da = dual_annealing(
+    #    eval_simple_func, bounds, 
+    #    args=(gridmap, start_angle, end_angle, angle_step, ranges, intensity),
+    #      maxiter=30  # `differential_evolution` の maxiter に相当
+    #)
+    #return result_da.x
+
+    ## 精密な探索
+    #bounds = [(result_de.x[0] - 0.2, result_de.x[0] + 0.2),
+    #          (result_de.x[1] - 0.2, result_de.x[1] + 0.2),
+    #          (result_de.x[2] - 4 * math.pi/180, result_de.x[2] + 4 * math.pi/180)]
+    #result = minimize(
+    #    eval_simple_func,          
+    #    result_de.x,                   # 差分進化法の結果を初期値として利用
+    #    args=(gridmap, start_angle, end_angle, angle_step, ranges, intensity),
+    #    method='CG',  
+    #    #method='L-BFGS-B',             # 境界付き最適化
+    #    #bounds=bounds,                 # 制約を考慮
+    #    options={
+    #        'disp': False,              # 結果を表示
+    #        'maxiter': 500,            # 最大反復回数
+    #        'ftol': 1e-8               # より高い精度を目指す
+    #    }
+    #)
+    #return result.x
 
 class Gridmap():
     def __init__(self, xmin, ymin, xmax, ymax, csize):
