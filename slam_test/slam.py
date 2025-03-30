@@ -207,6 +207,7 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     de_cov_matrix_list = []
     cov_diagonal_elements = []
     for i in range(len(urglog_data)):
+        start_time = time.time()
         urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data[i]
         if len(ranges) != 1081: 
             print(f"skip data: {urg_timestamp} {i}")
@@ -285,6 +286,7 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         #except np.linalg.LinAlgError:
         #    print("ヘッセ行列は逆行列を持ちません。")
 
+        print(f"Loop time:{time.time() - start_time:.3f}")
     video_out.release()
     print(f"動画が保存されました")
     print("done")
