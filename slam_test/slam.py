@@ -8,6 +8,12 @@ from scipy.ndimage import convolve
 import time
 import copy
 import tkinter as tk
+STORE_ROOT_DIR_NAME = f"slam_result_250330-2"
+#enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
+#urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
+
+enc_filepath = "./250327-2/enclog"  # enclogファイルのパス
+urg_filepath = "./250327-2/urglog"  # urglogファイルのパス
 
 # エンコーダーデータの読み込み
 def load_enclog(filepath):
@@ -160,7 +166,7 @@ def video_writer(output_file, gridmap):
 
 def slam_process(enclog_data, urglog_data, gridmap, poses):
     # MP4動画に保存する処理
-    video_out = video_writer("slam_output.mp4", gridmap)
+    video_out = video_writer(f"{STORE_ROOT_DIR_NAME}/slam_output.mp4", gridmap)
 
     time_diff_enc_urg = 50 # msec
 
@@ -250,6 +256,9 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     print("done")
     draw_poses_gmap = gridmap.draw_poses(robot_poses)
     cv2.imshow("gmap", draw_poses_gmap)
+    with open(f"{STORE_ROOT_DIR_NAME}/cov_diagonal_elements.txt", "w") as f:
+        for d in cov_diagonal_elements:
+            f.write(f"{d[0]:.4f} {d[1]:.4f} {d[2]:.4f} {d[3]} {d[4]:.3f} {d[5]:.3f} {d[6]:.3f} {d[7]:.3f} {d[8]:.3f} {d[9]:.3f} {d[10]:.3f} {d[11]:.3f} {d[12]:.3f}\n")
     cv2.waitKey()
 
     return gridmap, robot_poses
@@ -391,12 +400,57 @@ def init_gridmap(xmin = -5.0, ymin = -5.0, xmax = 5.0, ymax = 5.0, csize = 0.05)
     return gmap
     
 # メイン処理
+from pathlib import Path # pathの操作
+import readchar # 1文字の入力受付
+import os
+import shutil
 if __name__ == "__main__":
-    #enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
-    #urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
+    if Path(STORE_ROOT_DIR_NAME).exists():
+        print(f"'{STORE_ROOT_DIR_NAME}' exists.")
+        print("Do you want to continue? y/[n] ", end="", flush=True)
+        response = readchar.readchar()  # 1文字入力を受け付ける
+        if response.lower() == "y":
+            print("\nContinuing...")
+            print("Delete existing log files")
+            files_to_delete = ["robot_poses.txt", "slam_output.mp4", "opt.png", "mapinfo.lua"]
+            for file in files_to_delete:
+                file_path = os.path.join(STORE_ROOT_DIR_NAME, file)
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"Deleted: {file_path}")
+            print("✅ Delete existing log files")
+            # 必要なファイルが存在するか確認
+            if os.path.isfile(os.path.join(STORE_ROOT_DIR_NAME, "enclog")):
+                print("✅ exist enclog")
+            else:
+                print("enclogを用意してください．")
+                exit()
+            if os.path.isfile(os.path.join(STORE_ROOT_DIR_NAME, "urglog")):
+                print("✅ exist urglog")
+            else:
+                print("urglogを用意してください．")
+                exit()
+        else:
+            print("\nExiting...")
+            exit()
+    else:
+        print(f"'{STORE_ROOT_DIR_NAME}' does not exist.")
+        # ディレクトリがなければ作成
+        os.makedirs(STORE_ROOT_DIR_NAME, exist_ok=True)
+        print("enclog, urglogを用意します")
+        shutil.copy(enc_filepath, f"{STORE_ROOT_DIR_NAME}/")
+        shutil.copy(urg_filepath, f"{STORE_ROOT_DIR_NAME}/")
+        if os.path.isfile(os.path.join(STORE_ROOT_DIR_NAME, "enclog")):
+            print("✅ exist enclog")
+        else:
+            print("enclogを用意してください．")
+            exit()
+        if os.path.isfile(os.path.join(STORE_ROOT_DIR_NAME, "urglog")):
+            print("✅ exist urglog")
+        else:
+            print("urglogを用意してください．")
+            exit()
 
-    enc_filepath = "./250327-2/enclog"  # enclogファイルのパス
-    urg_filepath = "./250327-2/urglog"  # urglogファイルのパス
     # データの読み込み
     enclog_data = load_enclog(enc_filepath)  
     urglog_data = load_urglog(urg_filepath)
@@ -432,7 +486,7 @@ if __name__ == "__main__":
     #gridmap = init_gridmap(xmin = -35.0, ymin = -20.0, xmax = 35.0, ymax = 55.0, csize = 0.025)
     gridmap = init_gridmap(minX, minY, maxX, maxY, csize)
 
-    with open("./mapInfo.lua", "w") as file:
+    with open(f"{STORE_ROOT_DIR_NAME}/mapInfo.lua", "w") as file:
         file.write("local mapInfo = {\n")
         file.write(f"\toriginX = {gridmap.originX},\n")
         file.write(f"\toriginY = {gridmap.originY},\n")
@@ -452,8 +506,8 @@ if __name__ == "__main__":
     print(f"Executed Time: {time.time()-s}")
 
     cv2.imshow("gmap", gridmap.gmap)
-    cv2.imwrite("opt.png", gridmap.gmap)
-    with open("robot_poses.txt", "w") as file:
+    cv2.imwrite(f"{STORE_ROOT_DIR_NAME}/opt.png", gridmap.gmap)
+    with open(f"{STORE_ROOT_DIR_NAME}/robot_poses.txt", "w") as file:
         for p in poses:
             file.write(f"{p[0]} {p[1]} {p[2]} {p[3]}\n")
     cv2.waitKey()
