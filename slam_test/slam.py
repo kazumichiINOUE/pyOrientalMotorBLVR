@@ -201,9 +201,6 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         prev_enc = enc
 
     robot_poses = [[0, 0, 0, 0]]
-    pu = 0.0
-    pv = 0.0
-    pa = 0.0
     de_cov_matrix_list = []
     cov_diagonal_elements = []
     for i in range(len(urglog_data)):
