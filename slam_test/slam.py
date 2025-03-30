@@ -91,6 +91,13 @@ def calc_relative_pose(prev, curr):
     u = math.cos(pa) * dx + math.sin(pa) * dy
     v =-math.sin(pa) * dx + math.cos(pa) * dy
     a = da
+    while True:
+        if a > math.pi:
+            a -= 2*math.pi
+        elif a < -math.pi:
+            a += 2*math.pi
+        else:
+            break
     return (prev[0], u, v, a)
 
 # 共分散行列を計算
