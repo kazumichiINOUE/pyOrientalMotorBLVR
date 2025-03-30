@@ -83,8 +83,8 @@ def convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensit
     return np.column_stack((gx, gy, intensity))
 
 def calc_relative_pose(prev, curr):
-    px, py, pa = prev[1], prev[2], prev[3]
-    cx, cy, ca = curr[1], curr[2], curr[3]
+    _, px, py, pa = prev
+    _, cx, cy, ca = curr
     dx = cx - px
     dy = cy - py
     da = ca - pa
@@ -373,12 +373,7 @@ class Gridmap():
         for _, px, py, pa in poses:
             ix = int( px/self.csize) + self.originX
             iy = int(-py/self.csize) + self.originY
-            if ix >= 0 and ix < self.width and iy >= 0 and iy < self.height:
-                gmap[iy-1, ix  ] = 255
-                gmap[iy  , ix-1] = 255
-                gmap[iy  , ix  ] = 255
-                gmap[iy  , ix+1] = 255
-                gmap[iy+1, ix  ] = 255
+            cv2.circle(gmap, (ix, iy), 1, (255, 255, 255), -1, cv2.LINE_AA)
         return gmap
 
     def matches_simple(self, points):
