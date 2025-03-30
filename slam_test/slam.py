@@ -210,25 +210,29 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
         #gridmap.update_intensity(points, robot_pose)
         robot_poses.append([urg_timestamp, *robot_pose])
 
-        # 各ロボット座標に対して描画
-        img_disp = copy.deepcopy(gridmap.gmap)
-        for p in robot_poses:
-            ix = int( p[1] / gridmap.csize) + gridmap.originX
-            iy = int(-p[2] / gridmap.csize) + gridmap.originY
-            cv2.circle(img_disp, (ix, iy), 5, (82, 54, 20), -1)
+        if i % 100 == 0:
+            img_disp = copy.deepcopy(gridmap.gmap)
+            # 各ロボット座標に対して描画
+            poses = np.array(robot_poses)  # robot_posesがリストの場合、NumPy配列に変換
+            ix = (poses[:, 1] / gridmap.csize).astype(int) + gridmap.originX
+            iy = (-poses[:, 2] / gridmap.csize).astype(int) + gridmap.originY
+            # 画像描画
+            for x, y in zip(ix, iy):
+                cv2.circle(img_disp, (x, y), 5, (82, 54, 20), -1)
 
-        # 各LiDAR計測点に対して描画
-        img_disp_color = cv2.cvtColor(img_disp, cv2.COLOR_GRAY2BGR)
-        for p in points:
-            ix = int( p[0] / gridmap.csize) + gridmap.originX
-            iy = int(-p[1] / gridmap.csize) + gridmap.originY
-            cv2.circle(img_disp_color, (ix, iy), 5, (115, 224, 255), -1)
 
-        rotated_img = cv2.rotate(img_disp_color, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        #rotated_img = cv2.cvtColor(rotated_img, cv2.COLOR_GRAY2BGR)
-        video_out.write(rotated_img)
-        cv2.imshow("gmap", img_disp_color)
-        cv2.waitKey(5)
+            # 各LiDAR計測点に対して描画
+            img_disp_color = cv2.cvtColor(img_disp, cv2.COLOR_GRAY2BGR)
+            for p in points:
+                ix = int( p[0] / gridmap.csize) + gridmap.originX
+                iy = int(-p[1] / gridmap.csize) + gridmap.originY
+                cv2.circle(img_disp_color, (ix, iy), 5, (115, 224, 255), -1)
+
+            rotated_img = cv2.rotate(img_disp_color, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            #rotated_img = cv2.cvtColor(rotated_img, cv2.COLOR_GRAY2BGR)
+            video_out.write(rotated_img)
+            cv2.imshow("gmap", img_disp_color)
+            cv2.waitKey(5)
 
         ## ヘッセ行列とその逆行列を計算
         #H = calc_Hmat(robot_pose, gridmap, start_angle, end_angle, angle_step, ranges, intensity)
