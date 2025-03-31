@@ -323,19 +323,21 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     ranges = ranges.astype(float)
     angles = np.radians([ind * step_angle + start_angle for ind in index])
 
+    dxy = 0.5
+    da = 10*math.pi/180
     # 粗い探索
     # 今の動作周期だと，この範囲では探索から外れてしまうことがある．探索時間を減らす工夫のほうが必要
-    bounds = [(robot_pose[0] - 0.5, robot_pose[0] + 0.5),
-              (robot_pose[1] - 0.5, robot_pose[1] + 0.5),
-              (robot_pose[2] - 20*math.pi/180, robot_pose[2] + 20*math.pi/180)]
+    bounds = [(robot_pose[0] - dxy, robot_pose[0] + dxy),
+              (robot_pose[1] - dxy, robot_pose[1] + dxy),
+              (robot_pose[2] - da, robot_pose[2] + da)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
         args=(global_map, mapInfo, start_angle, end_angle, step_angle, ranges, angles),
         strategy='best1exp',
-        popsize=10,     # 自己位置推定の高速化のために下げた．ベイズ最適化で求めた86よりちょっと高くする
+        popsize=20,     # 自己位置推定の高速化のために下げた．ベイズ最適化で求めた86よりちょっと高くする
         tol=1e-4,
-        maxiter=18,     # こちらも下げた．同じく，38よりちょっと高くする
+        maxiter=15,     # こちらも下げた．同じく，38よりちょっと高くする
         workers=1,
         updating='immediate'
     )
