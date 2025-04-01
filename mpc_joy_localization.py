@@ -302,6 +302,9 @@ def eval_simple_func(pose, global_map, mapInfo, start_angle, end_angle, angle_st
     global searched_pose_list
     sx, sy, sa = pose
     points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, angles, (sx, sy, sa))
+    N = min(250, len(points)) # 抽出する点の数
+    indices = np.random.choice(points.shape[0], N, replace=False)  # 重複なし
+    points = points[indices]
     eval =  matches_simple(points, global_map, mapInfo)  # 評価値を反転（最小化のため）
     searched_pose_list.append([sx, sy, sa, eval])
     return eval
