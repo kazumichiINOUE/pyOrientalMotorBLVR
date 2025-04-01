@@ -387,9 +387,9 @@ frame = None
 ret = False
 def image_writer():
     global ret, frame
-    dir_name = datetime.now().strftime("%y%m%d")
-    dir_name += "_images"
-    os.makedirs(dir_name, exist_ok=True)
+    #dir_name = datetime.now().strftime("%y%m%d")
+    #dir_name += "_images"
+    #os.makedirs(dir_name, exist_ok=True)
     while not stop_thread:
         ts = int(time.time() * 1e3)
         ret, frame = cap.read()
