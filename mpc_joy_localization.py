@@ -22,7 +22,6 @@ from pathlib import Path # pathの操作
 import readchar # 1文字の入力受付
 import shutil   # sub-dir の操作
 
-
 import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
@@ -97,6 +96,16 @@ else:
     print(f"{STORE_ROOT_DIR_NAME}は作成しました．")
     print("global_map, wp_list.txtを作成してから実行してください")
     exit()
+
+# 実験ノートを作成
+EXPERIMENT_NOTE_PATH = f"{STORE_ROOT_DIR_NAME}/note.txt"
+experiment_note_file = open(EXPERIMENT_NOTE_PATH, "w")
+ts = time.time()  # 現在のタイムスタンプ
+dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
+TODAY_TIME = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+experiment_note_file.write(f"DATE: {TODAY_TIME}\n")
+experiment_note_file.write(f"Map: {STORE_ROOT_DIR_NAME}/global_map/rebuild_opt.png\n")
+experiment_note_file.write(f"Map Info: {STORE_ROOT_DIR_NAME}/global_map/mapInfo.lua\n")
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -876,4 +885,11 @@ finally:
     cv2.destroyAllWindows()
     cap.release()
     pygame.quit()
+
+    ts = time.time()  # 現在のタイムスタンプ
+    dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
+    TODAY_TIME = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+    experiment_note_file.write(f"Finished Date: {TODAY_TIME}\n")
+    experiment_note_file.close()
+
     sys.exit()
