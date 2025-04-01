@@ -219,13 +219,13 @@ def blv_odometory_fd(fd):
 
 def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fname):
     global urg_data, urg_m_data, urg_b_data
+    global ox, oy, oa, ou, ov, oth, odo_travel, odo_rotation
     data_size = 1081*4
     #index = 0 # for LittleSLAM
     filename = f"{STORE_ROOT_DIR_NAME}/{fname}"
     with open(filename, "w") as file:
         while not stop_thread:
             ts = int(time.time() * 1e3)
-            file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
             if fname == "urglog":
                 success, urg_data = urg.one_shot_intensity()
                 if success:
@@ -243,7 +243,7 @@ def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fna
                 #for d in urg_b_data:
                 #    file.write(f"{d[1]} 0 0 {d[2]} ")
 
-            file.write(f"{ts}\n")
+            file.write(f"{ox:.3f} {oy:.3f} {oa:.3f} {ts}\n")
 
 def localization(global_map, cur_x, cur_y, cur_a):
     estimated_pose = [cur_x, cur_y, cur_a] 
