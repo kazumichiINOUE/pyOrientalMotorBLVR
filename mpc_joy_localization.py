@@ -587,6 +587,11 @@ try:
                     # val[3] eval
             est_file.write(f"{rx} {ry} {ra} {searched_pose_list[-1][3]} {ts} {success_flag} {ave_valid_count}\n") 
             if 0:
+                # 仮説
+                # DEによる推論結果は，オドメトリと単純に融合できない
+                # 法線距離などの場合，推定結果の分散に，それなりの特性を見出すことができる
+                # 例えば，廊下であれば長手方向に分散が広がるなど
+                # DEで同様な根拠づけができるかどうか
                 searched_pose_list_np = np.array(searched_pose_list)
                 de_cov_matrix = np.cov(searched_pose_list_np[:, :3], rowvar=False)
                 dist = ou
