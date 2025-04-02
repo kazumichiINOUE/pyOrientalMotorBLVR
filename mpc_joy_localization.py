@@ -338,13 +338,13 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     ranges = ranges.astype(float)
     angles = np.radians([ind * step_angle + start_angle for ind in index])
 
-    dxy = 0.5
-    da = 10*math.pi/180
+    dxy = 0.5           # m
+    da = 10*math.pi/180 # rad
     # 粗い探索
     # 今の動作周期だと，この範囲では探索から外れてしまうことがある．探索時間を減らす工夫のほうが必要
     bounds = [(robot_pose[0] - dxy, robot_pose[0] + dxy),
               (robot_pose[1] - dxy, robot_pose[1] + dxy),
-              (robot_pose[2] - da, robot_pose[2] + da)]
+              (robot_pose[2] - da,  robot_pose[2] + da)]
     result_de = differential_evolution(
         eval_simple_func,
         bounds,
