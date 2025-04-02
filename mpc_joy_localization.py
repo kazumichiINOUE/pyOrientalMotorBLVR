@@ -339,7 +339,7 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     angles = np.radians([ind * step_angle + start_angle for ind in index])
 
     dxy = 0.5           # m
-    da = 10*math.pi/180 # rad
+    da = 10*pi/180 # rad
     # 粗い探索
     # 今の動作周期だと，この範囲では探索から外れてしまうことがある．探索時間を減らす工夫のほうが必要
     bounds = [(robot_pose[0] - dxy, robot_pose[0] + dxy),
@@ -416,10 +416,10 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     wx, wy = wp_list[wp_index]
     target_r = math.sqrt((wx - x)**2 + (wy - y)**2)
     delta_th = math.atan2(wy-y, wx-x) - a # 現在の方向を基準にした，wpまでの方向差
-    if delta_th > np.pi:
-        delta_th -= 2*np.pi
-    elif delta_th < -np.pi:
-        delta_th += 2*np.pi
+    if delta_th > pi:
+        delta_th -= 2*pi
+    elif delta_th < -pi:
+        delta_th += 2*pi
     # WPの到達判定
     if target_r < 1.0:
         wp_index += 1
@@ -437,7 +437,7 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     else:
         v = 0
     w = 0.5*delta_th
-    print(f"v:{v:.3f}, w[deg/s]:{w*180/np.pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/np.pi:.3f}, wx:{wx:.3f}, wx:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/np.pi:.1f}")
+    print(f"v:{v:.3f}, w[deg/s]:{w*180/pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/pi:.3f}, wx:{wx:.3f}, wx:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/pi:.1f}")
     return v, w, target_r, delta_th, wp_index, estimated_pose
 
 try:
@@ -572,7 +572,7 @@ try:
             cur_x = math.cos(ra) * odo_u - math.sin(ra) * odo_v + rx
             cur_y = math.sin(ra) * odo_u + math.cos(ra) * odo_v + ry
             cur_a = odo_th + ra
-            print(f"オドメトリ更新値 {cur_x:.3f} {cur_y:.3f} {cur_a*180/np.pi:.1f} {odo_u:.3f} {odo_v:.3f} {odo_th*180/np.pi:.1f}")
+            print(f"オドメトリ更新値 {cur_x:.3f} {cur_y:.3f} {cur_a*180/pi:.1f} {odo_u:.3f} {odo_v:.3f} {odo_th*180/pi:.1f}")
 
             estimated_pose, success_flag, valid_count = localization(global_map, cur_x, cur_y, cur_a) 
             ave_valid_count = 0.5*(ave_valid_count + valid_count)
@@ -818,9 +818,9 @@ try:
             text_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
             # タイムスタンプの取得
             text_ts = str(f"ts:{int((ts*1e3))}")
-            text_pose = str(f"x:{rx:.3f} y:{ry:.3f} a:{ra*180/np.pi:.1f}[deg]")
+            text_pose = str(f"x:{rx:.3f} y:{ry:.3f} a:{ra*180/pi:.1f}[deg]")
             text_travel = str(f"travel:{odo_travel:.1f}[m]")
-            text_vw = str(f"v:{v:.2f}[m/s] w:{w*180/np.pi:.1f}[deg/s]")
+            text_vw = str(f"v:{v:.2f}[m/s] w:{w*180/pi:.1f}[deg/s]")
             # フォント設定
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 5
