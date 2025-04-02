@@ -45,6 +45,11 @@ NAVI = True # enable navigation
 #NAVI = False # disable navigation
 
 STORE_ROOT_DIR_NAME = "experiment_250328-2"
+def get_today_time():
+    ts = time.time()  # 現在のタイムスタンプ
+    dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
+    return dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+
 if Path(STORE_ROOT_DIR_NAME).exists():
     print(f"'{STORE_ROOT_DIR_NAME}' exists.")
     print("Do you want to continue? y/[n] ", end="", flush=True)
@@ -100,9 +105,7 @@ else:
 # 実験ノートを作成
 EXPERIMENT_NOTE_PATH = f"{STORE_ROOT_DIR_NAME}/note.txt"
 experiment_note_file = open(EXPERIMENT_NOTE_PATH, "w")
-ts = time.time()  # 現在のタイムスタンプ
-dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
-TODAY_TIME = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+TODAY_TIME = get_today_time()
 experiment_note_file.write(f"DATE: {TODAY_TIME}\n")
 experiment_note_file.write(f"Map: {STORE_ROOT_DIR_NAME}/global_map/rebuild_opt.png\n")
 experiment_note_file.write(f"Map Info: {STORE_ROOT_DIR_NAME}/global_map/mapInfo.lua\n")
@@ -894,9 +897,7 @@ finally:
     cap.release()
     pygame.quit()
 
-    ts = time.time()  # 現在のタイムスタンプ
-    dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
-    TODAY_TIME = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
+    TODAY_TIME = get_today_time()
     experiment_note_file.write(f"Finished Date: {TODAY_TIME}\n")
     experiment_note_file.close()
 
