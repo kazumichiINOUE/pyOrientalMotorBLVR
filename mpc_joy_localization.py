@@ -36,7 +36,7 @@ import modules_py.Lidar as Lidar
 import modules_cpp.lidar_draw as lidar_draw
 
 import modules_cpp.MotorDriver as md
-import MPC
+import modules_py.MPC as MPC
 
 # Select navigation mode
 NAVI = True # enable navigation
