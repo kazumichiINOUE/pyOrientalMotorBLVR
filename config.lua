@@ -1,9 +1,9 @@
-print("Hello, coyomi config.lua")
+print("Hello, mobitia config.lua")
 
 local config = {
   robot = {
-    robot_name = "coyomi",
-    version = "3.0.0",
+    robot_name = "mobitia",
+    version = "1.0.0",
     debug_mode = true
   },
 
