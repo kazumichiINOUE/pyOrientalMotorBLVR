@@ -33,9 +33,9 @@ import DummyJoystick    # 同上
 import ReadConfig as rc
 from modules_py.Colors import hex_to_rgb
 import modules_py.Lidar as Lidar
-import lidar_draw
+import modules_cpp.lidar_draw as lidar_draw
 
-import MotorDriver as md
+import modules_cpp.MotorDriver as md
 import MPC
 
 # Select navigation mode
