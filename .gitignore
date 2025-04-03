@@ -19,3 +19,4 @@ mapInfo.lua
 log
 *.bkp
 .vscode
+experiment*
