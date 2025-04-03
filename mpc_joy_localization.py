@@ -43,6 +43,12 @@ import MPC
 NAVI = True # enable navigation
 #NAVI = False # disable navigation
 
+def rad2deg(th):
+    return th*180/pi
+
+def deg2rad(th):
+    return th*pi/180
+
 def get_today_time():
     ts = time.time()  # 現在のタイムスタンプ
     dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
@@ -337,8 +343,8 @@ def optimize_pose_combined(global_map, mapInfo, urg_data, robot_pose):
     ranges = ranges.astype(float)
     angles = np.radians([ind * step_angle + start_angle for ind in index])
 
-    dxy = 0.5           # m
-    da = 10*pi/180 # rad
+    dxy = 0.5        # m
+    da = deg2rad(10) # rad
     # 粗い探索
     # 今の動作周期だと，この範囲では探索から外れてしまうことがある．探索時間を減らす工夫のほうが必要
     bounds = [(robot_pose[0] - dxy, robot_pose[0] + dxy),
@@ -364,8 +370,8 @@ def draw_lidar_on_global_map(img_disp, urg_data, rx, ry, ra, mapInfo):
     height = len(global_map)
     width = len(global_map[0])
     # LiDAR変換用にcos, sin のリストを作る
-    cs = [cos((i * step_angle + start_angle)*pi/180 + ra) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
-    sn = [sin((i * step_angle + start_angle)*pi/180 + ra) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    cs = [cos(deg2rad(i * step_angle + start_angle) + ra) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    sn = [sin(deg2rad(i * step_angle + start_angle) + ra) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
     d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
     try:
         xd = d_values * cs / 1000 + rx # X座標変換
@@ -436,7 +442,7 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     else:
         v = 0
     w = 0.5*delta_th
-    print(f"v:{v:.3f}, w[deg/s]:{w*180/pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/pi:.1f}, wx:{wx:.3f}, wy:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/pi:.1f}")
+    print(f"v:{v:.3f}, w[deg/s]:{rad2deg(w):.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{rad2deg(a):.1f}, wx:{wx:.3f}, wy:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{rad2deg(delta_th):.1f}")
     return v, w, target_r, delta_th, wp_index, estimated_pose
 
 try:
@@ -532,11 +538,11 @@ try:
     ## 中心(1500, 0)の半径500の円上の点のリスト
     center_x = 0
     center_y = 0
-    point_on_circle = [(center_x + 50 * cos(i * pi / 180), center_y + 50 * sin(i * pi / 180)) for i in range(360)]
+    point_on_circle = [(center_x + 50 * cos(deg2rad(i)), center_y + 50 * sin(deg2rad(i)) for i in range(360)]
     #cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     # LiDAR変換用にcos, sin のリストを作る
-    cs = [cos((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
-    sn = [sin((i * step_angle + start_angle)*pi/180) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    cs = [cos(deg2rad(i * step_angle + start_angle) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    sn = [sin(deg2rad(i * step_angle + start_angle) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
     # 色をNumPyで表現
     color = np.array(hex_to_rgb(config.map.color.point), dtype=np.uint8)
     # 現在地図上での自己位置
@@ -571,7 +577,7 @@ try:
             cur_x = math.cos(ra) * odo_u - math.sin(ra) * odo_v + rx
             cur_y = math.sin(ra) * odo_u + math.cos(ra) * odo_v + ry
             cur_a = odo_th + ra
-            print(f"オドメトリ更新値 {cur_x:.3f} {cur_y:.3f} {cur_a*180/pi:.1f} {odo_u:.3f} {odo_v:.3f} {odo_th*180/pi:.1f}")
+            print(f"オドメトリ更新値 {cur_x:.3f} {cur_y:.3f} {rad2deg(cur_a):.1f} {odo_u:.3f} {odo_v:.3f} {rad2deg(odo_th):.1f}")
 
             estimated_pose, success_flag, valid_count = localization(global_map, cur_x, cur_y, cur_a) 
             ave_valid_count = 0.5*(ave_valid_count + valid_count)
@@ -817,9 +823,9 @@ try:
             text_date = dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
             # タイムスタンプの取得
             text_ts = str(f"ts:{int((ts*1e3))}")
-            text_pose = str(f"x:{rx:.3f} y:{ry:.3f} a:{ra*180/pi:.1f}[deg]")
+            text_pose = str(f"x:{rx:.3f} y:{ry:.3f} a:{rad2deg(ra):.1f}[deg]")
             text_travel = str(f"travel:{odo_travel:.1f}[m]")
-            text_vw = str(f"v:{v:.2f}[m/s] w:{w*180/pi:.1f}[deg/s]")
+            text_vw = str(f"v:{v:.2f}[m/s] w:{rad2deg(w):.1f}[deg/s]")
             # フォント設定
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 5
