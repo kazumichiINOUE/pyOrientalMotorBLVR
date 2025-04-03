@@ -901,10 +901,10 @@ finally:
     cap.release()
     pygame.quit()
 
-    experiment_note_file.write(f"Movie: {STORE_ROOT_DIR_NAME}/mpc_joy_localization_output.mp4")
+    experiment_note_file.write(f"Movie: {STORE_ROOT_DIR_NAME}/mpc_joy_localization_output.mp4\n")
     TODAY_TIME = get_today_time()
     experiment_note_file.write(f"Finished Date: {TODAY_TIME}\n")
-    experiment_note_file.write(f"Total travel: {odo_travel:.1f}[m]")
+    experiment_note_file.write(f"Total travel: {odo_travel:.1f}[m]\n")
     experiment_note_file.close()
 
     sys.exit()
