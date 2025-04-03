@@ -21,6 +21,8 @@ M_PI = math.pi
 STEP_RESOLUTION = config.motor.step_resolution
 GEAR_RATIO = config.motor.gear_ratio
 
+DIST_COEFFICIENT = STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+
 ### 受信メッセージ受取用
 MAX_BUFFER_SIZE = 512
 
@@ -287,8 +289,8 @@ def read_state(ser):
     power_L       = int.from_bytes(buf[19 + OFFSET:23 + OFFSET], 'big')
     voltage_L     = int.from_bytes(buf[23 + OFFSET:27 + OFFSET], 'big') * 0.1
 
-    dist_L   = position_L * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
-    dist_R   =-position_R * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    dist_L   = position_L * DIST_COEFFICIENT 
+    dist_R   =-position_R * DIST_COEFFICIENT 
     travel   = (dist_L + dist_R) / 2.0
     rotation = (dist_R - dist_L) / WHEEL_T
 
@@ -328,8 +330,8 @@ def read_odo(ser, odo):
     position_R    = int.from_bytes(buf[15:19], 'big', signed=True)
     position_L    = int.from_bytes(buf[15 + OFFSET:19 + OFFSET], 'big', signed=True)
 
-    dist_L   = position_L * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
-    dist_R   =-position_R * STEP_RESOLUTION * 0.5 * WHEEL_D / GEAR_RATIO
+    dist_L   = position_L * DIST_COEFFICIENT
+    dist_R   =-position_R * DIST_COEFFICIENT 
     travel   = (dist_L + dist_R) / 2.0
     rotation = (dist_R - dist_L) / WHEEL_T
 
