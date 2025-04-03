@@ -32,7 +32,7 @@ import DummyLidar       # 同上
 import DummyJoystick    # 同上
 import ReadConfig as rc
 from modules_py.Colors import hex_to_rgb
-import Lidar
+import modules_py.Lidar as Lidar
 import lidar_draw
 
 import MotorDriver as md
