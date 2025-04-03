@@ -18,3 +18,4 @@ mapInfo.lua
 *.jpg
 log
 *.bkp
+.vscode
