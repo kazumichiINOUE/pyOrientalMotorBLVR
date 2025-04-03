@@ -30,7 +30,7 @@ import pygame
 import DummySerial      # 接続に失敗した時のためのダミー
 import DummyLidar       # 同上
 import DummyJoystick    # 同上
-import ReadConfig as rc
+import modules_py.ReadConfig as rc
 from modules_py.Colors import hex_to_rgb
 import modules_py.Lidar as Lidar
 import modules_cpp.lidar_draw as lidar_draw
