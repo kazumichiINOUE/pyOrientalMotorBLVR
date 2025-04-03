@@ -538,11 +538,11 @@ try:
     ## 中心(1500, 0)の半径500の円上の点のリスト
     center_x = 0
     center_y = 0
-    point_on_circle = [(center_x + 50 * cos(deg2rad(i)), center_y + 50 * sin(deg2rad(i)) for i in range(360)]
+    point_on_circle = [(center_x + 50 * cos(deg2rad(i)), center_y + 50 * sin(deg2rad(i))) for i in range(360)]
     #cap = cv2.VideoCapture(0)  # '0' は内蔵カメラ
     # LiDAR変換用にcos, sin のリストを作る
-    cs = [cos(deg2rad(i * step_angle + start_angle) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
-    sn = [sin(deg2rad(i * step_angle + start_angle) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    cs = [cos(deg2rad(i * step_angle + start_angle)) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
+    sn = [sin(deg2rad(i * step_angle + start_angle)) for i in range(int((end_angle - start_angle)/step_angle) + 1)]
     # 色をNumPyで表現
     color = np.array(hex_to_rgb(config.map.color.point), dtype=np.uint8)
     # 現在地図上での自己位置
