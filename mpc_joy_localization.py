@@ -34,7 +34,6 @@ import ReadConfig as rc
 from Colors import hex_to_rgb
 import Odometory
 import Lidar
-import lidar_conversion
 import lidar_draw
 
 import MotorDriver as md
@@ -44,12 +43,12 @@ import MPC
 NAVI = True # enable navigation
 #NAVI = False # disable navigation
 
-STORE_ROOT_DIR_NAME = "experiment_250328-2"
 def get_today_time():
     ts = time.time()  # 現在のタイムスタンプ
     dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
     return dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
 
+STORE_ROOT_DIR_NAME = "experiment_250402-0"
 if Path(STORE_ROOT_DIR_NAME).exists():
     print(f"'{STORE_ROOT_DIR_NAME}' exists.")
     print("Do you want to continue? y/[n] ", end="", flush=True)
@@ -432,12 +431,12 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
             estimated_pose = checked_pose
 
     if target_r > 0.5:
-        v = 0.5
+        v = 0.55
         #v = 0.45
     else:
         v = 0
     w = 0.5*delta_th
-    print(f"v:{v:.3f}, w[deg/s]:{w*180/pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/pi:.3f}, wx:{wx:.3f}, wx:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/pi:.1f}")
+    print(f"v:{v:.3f}, w[deg/s]:{w*180/pi:.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{a*180/pi:.1f}, wx:{wx:.3f}, wy:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{delta_th*180/pi:.1f}")
     return v, w, target_r, delta_th, wp_index, estimated_pose
 
 try:
