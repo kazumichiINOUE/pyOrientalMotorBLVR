@@ -277,8 +277,8 @@ def localization(global_map, cur_x, cur_y, cur_a):
         print(f"一致点が少ない {searched_pose_list[-1][3]}")
         estimated_pose = [cur_x, cur_y, cur_a] 
         succ = False
-    min_threshold = 50   # 以上の値
-    max_threshold = 35000  # 未満の値
+    min_threshold = 50     # 評価対象の距離の下限値
+    max_threshold = 35000  # 評価対象の距離の上限値
     count = sum(1 for index, r, intensity in urg_data if min_threshold <= r < max_threshold)
     return estimated_pose, succ, count
 
