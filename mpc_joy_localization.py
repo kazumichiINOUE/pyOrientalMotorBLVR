@@ -31,7 +31,7 @@ import DummySerial      # 接続に失敗した時のためのダミー
 import DummyLidar       # 同上
 import DummyJoystick    # 同上
 import ReadConfig as rc
-from Colors import hex_to_rgb
+from modules_py.Colors import hex_to_rgb
 import Lidar
 import lidar_draw
 
