@@ -53,7 +53,7 @@ def get_today_time():
     dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
     return dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
 
-STORE_ROOT_DIR_NAME = "experiment_250404-3"
+STORE_ROOT_DIR_NAME = "experiment_250405-0"
 if Path(STORE_ROOT_DIR_NAME).exists():
     print(f"'{STORE_ROOT_DIR_NAME}' exists.")
     print("Do you want to continue? y/[n] ", end="", flush=True)
@@ -404,12 +404,12 @@ def image_writer():
         time.sleep(1.0)
 
 def get_wp_list():
-    wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list_path.txt"
-    #wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
+    #wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list_path.txt"
+    wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
     wp_list = []
     with open(wp_filepath, 'r') as file:
         for line in file:
-            parts = line.strip().split(' ')
+            parts = line.strip().split(',')
             x = float(parts[0])
             y = float(parts[1])
             wp_list.append([x, y])
@@ -831,9 +831,12 @@ try:
             #img_disp_color = cv2.cvtColor(img_disp, cv2.COLOR_GRAY2BGR)
             img_disp_color = img_disp
             if NAVI:
-                v, w, target_r, target_a, wp_index, estimated_pose = get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map)
                 # wp_index が最後まで行ったら終了処理に飛ばす
+                if wp_index >= len(wp_list):
+                    print("Navigation finish.")
+                    break
 
+                v, w, target_r, target_a, wp_index, estimated_pose = get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map)
                 # Get control command from MPC
                 # 以下はうまくいっていない
                 if 0:
