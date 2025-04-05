@@ -7,12 +7,12 @@ import copy
 
 # import gridmap_update  #C++関数．使っていない
 
-STORE_ROOT_DIR_NAME = f"slam_result_250330-2"
+STORE_ROOT_DIR_NAME = f"slam_result_250404-2"
 #enc_filepath = "./250314-2/enclog"  # enclogファイルのパス
 #urg_filepath = "./250314-2/urglog"  # urglogファイルのパス
 
-enc_filepath = "./250327-2/enclog"  # enclogファイルのパス
-urg_filepath = "./250327-2/urglog"  # urglogファイルのパス
+enc_filepath = "./250404-1/enclog"  # enclogファイルのパス
+urg_filepath = "./250404-1/urglog"  # urglogファイルのパス
 
 # エンコーダーデータの読み込み
 def load_enclog(filepath):
@@ -229,14 +229,14 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
             # 今回のDEによる相対姿勢
             # robot_pose - robot_poses[-1][1:4]
             rp = calc_relative_pose(robot_poses[-1], [0, *robot_pose])
-            print(u, v, a)
-            print(rp[1:4])
+            #print(u, v, a)
+            #print(rp[1:4])
             cov_diagonal_elements.append([de_cov_matrix[0,0], de_cov_matrix[1,1], de_cov_matrix[2,2], urg_timestamp, *robot_pose, 
                                          u, v, a, rp[1], rp[2], rp[3]])
             # 推定した角度変化が10deg以上の場合，ジャンプしすぎていると判断し，オドメトリを使って姿勢更新
             if abs(rp[3]) > 0.17:
-                print("Corrected pose to odometory.")
-                print(u, v, a, rp[1], rp[2], rp[3])
+                #print("Corrected pose to odometory.")
+                #print(u, v, a, rp[1], rp[2], rp[3])
                 robot_pose = [rx, ry, ra]
             
         points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose)
@@ -298,15 +298,14 @@ def eval_simple_func(pose, gridmap, start_angle, end_angle, angle_step, ranges, 
     global searched_pose_list
     sx, sy, sa = pose
     points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, (sx, sy, sa))
-    N = 100  # 抽出する点の数
+    N = min(500, len(points)) # 抽出する点の数
     indices = np.random.choice(points.shape[0], N, replace=False)  # 重複なし
     points = points[indices]
     eval = gridmap.matches_simple(points)  # 評価値を反転（最小化のため）
     searched_pose_list.append([sx, sy, sa, eval])
     return eval
 
-from scipy.optimize import dual_annealing
-
+#from scipy.optimize import dual_annealing
 def optimize_pose_combined(gridmap, urglog_data, robot_pose):
     global searched_pose_list
     searched_pose_list = []
@@ -517,6 +516,12 @@ if __name__ == "__main__":
     maxY = 35.0
     csize = 0.025
 
+    # 図書館前~体育館
+    minX = -85.0
+    minY = -160.0
+    maxX = 170.0
+    maxY = 35.0
+    csize = 0.025
     # gridmap を初期化
     #gridmap = init_gridmap(xmin = -35.0, ymin = -20.0, xmax = 35.0, ymax = 55.0, csize = 0.025)
     gridmap = init_gridmap(minX, minY, maxX, maxY, csize)

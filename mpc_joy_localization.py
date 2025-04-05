@@ -53,7 +53,7 @@ def get_today_time():
     dt = datetime.fromtimestamp(ts)  # datetimeオブジェクトに変換
     return dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # ミリ秒を3桁に調整
 
-STORE_ROOT_DIR_NAME = "experiment_250402-0"
+STORE_ROOT_DIR_NAME = "experiment_250404-3"
 if Path(STORE_ROOT_DIR_NAME).exists():
     print(f"'{STORE_ROOT_DIR_NAME}' exists.")
     print("Do you want to continue? y/[n] ", end="", flush=True)
@@ -66,14 +66,14 @@ if Path(STORE_ROOT_DIR_NAME).exists():
             file_path = os.path.join(STORE_ROOT_DIR_NAME, file)
             if os.path.exists(file_path):
                 os.remove(file_path)
-                print(f"Deleted: {file_path}")
+                print(f"🗑️Deleted: {file_path}")
         subdir = os.path.join(STORE_ROOT_DIR_NAME, "search_result")  # サブディレクトリのパス
         if os.path.exists(subdir):
             for file in os.listdir(subdir):
                 file_path = os.path.join(subdir, file)
                 if os.path.isfile(file_path):  # ファイルなら削除
                     os.remove(file_path)
-                    print(f"Deleted: {file_path}")
+                    print(f"🗑️Deleted: {file_path}")
             print("✅ Delete existing log files")
         # 必要なファイルが存在するか確認
         else:
@@ -404,20 +404,101 @@ def image_writer():
         time.sleep(1.0)
 
 def get_wp_list():
-    wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
+    wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list_path.txt"
+    #wp_filepath = STORE_ROOT_DIR_NAME + "/wp_list.txt"
     wp_list = []
     with open(wp_filepath, 'r') as file:
         for line in file:
-            parts = line.strip().split(',')
+            parts = line.strip().split(' ')
             x = float(parts[0])
             y = float(parts[1])
             wp_list.append([x, y])
 
     return wp_list
 
+from collections import deque
+def wave_front_planner(x, y, wx, wy, global_map):
+    ts = time.time()
+    cx = int( x/mapInfo.csize + mapInfo.originX)
+    cy = int(-y/mapInfo.csize + mapInfo.originY)
+    iwx = int( wx/mapInfo.csize + mapInfo.originX)
+    iwy = int(-wy/mapInfo.csize + mapInfo.originY)
+
+    wfp_map = copy.deepcopy(global_map)
+    wfp_map = cv2.cvtColor(wfp_map, cv2.COLOR_BGR2GRAY)
+    height, width = wfp_map.shape
+    wfp_result = np.full((height, width), -1)
+
+    wfp_result[iwy, iwx] = 0    # Goal
+    queue = deque()
+    queue.append((iwx, iwy))
+
+    directions = [(0, 1), (1, 0), (0, -1), (-1, 0)]
+    while queue:
+        x, y = queue.popleft()
+        current_cost = wfp_result[y, x]
+
+        # 現在位置に到達したら終了
+        if (x, y) == (cx, cy):
+            break
+
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+
+            if 0 <= nx < width and 0 <= ny < height:
+                if wfp_map[ny, nx] != 0 and wfp_result[ny, nx] == -1:  # 空きセルかつ未探索
+                    wfp_result[ny, nx] = current_cost + 1
+                    queue.append((nx, ny))
+        
+    path = [(cx, cy)]
+    x, y = cx, cy
+    while wfp_result[y, x] != 0:
+        min_cost = float('inf')
+        next_step = None
+        
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            
+            if 0 <= nx < wfp_result.shape[1] and 0 <= ny < wfp_result.shape[0]:
+                if wfp_result[ny, nx] >= 0 and wfp_result[ny, nx] < min_cost:
+                    min_cost = wfp_result[ny, nx]
+                    next_step = (nx, ny)
+        
+        if next_step is None:  # 経路が見つからない場合
+            print("経路が見つからない")
+            exit()
+        
+        x, y = next_step
+        path.append((x, y))
+
+    print(f"time: {time.time() - ts}")
+
+    #for x, y in path:
+    #    cv2.circle(wfp_map, (x, y), 5, (255,255,255), -1)
+    #    #print(x, y)
+
+    #cv2.imshow("wfp", wfp_map)
+    #cv2.waitKey()
+
+    #for px, py in path:
+    #    x = (px - mapInfo.originX)*mapInfo.csize
+    #    y =-(py - mapInfo.originY)*mapInfo.csize
+    #    print(x, y)
+
+    px, py = path[0]
+
+    target_x = (px - mapInfo.originX)*mapInfo.csize
+    target_y =-(py - mapInfo.originY)*mapInfo.csize
+
+    return target_x, target_y
+
 def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     x, y, a = estimated_pose
     wx, wy = wp_list[wp_index]
+    # 現在位置からWPまでのWave Front Plannerで次の目標点を決める
+    #wx, wy = wave_front_planner(x, y, wx, wy, global_map)
+    #print(wx, wy)
+
     target_r = math.sqrt((wx - x)**2 + (wy - y)**2)
     delta_th = math.atan2(wy-y, wx-x) - a # 現在の方向を基準にした，wpまでの方向差
     if delta_th > pi:
@@ -425,15 +506,27 @@ def get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map):
     elif delta_th < -pi:
         delta_th += 2*pi
     # WPの到達判定
-    if target_r < 1.0:
+    while target_r < 1.0:
         wp_index += 1
+        if wp_index >= len(wp_list):
+            v, w = 0, 0
+            print(f"v:{v:.3f}, w[deg/s]:{rad2deg(w):.1f}, x:{x:.3f}, y:{y:.3f}, a[deg]:{rad2deg(a):.1f}, wx:{wx:.3f}, wy:{wy:.3f}, dist:{target_r:.3f}, th[deg]:{rad2deg(delta_th):.1f}")
+            return v, w, target_r, delta_th, wp_index, estimated_pose
+
         wx, wy = wp_list[wp_index]
-        md.send_vw(fd, 0, 0)
-        time.sleep(2.0)
+        #md.send_vw(fd, 0, 0)
+        #time.sleep(2.0)
         # WP到達毎に自己推定の再確認をする
         checked_pose, success_flag, valid_count = localization(global_map, x, y, a) 
         if success_flag:
             estimated_pose = checked_pose
+        x, y, a = estimated_pose
+        target_r = math.sqrt((wx - x)**2 + (wy - y)**2)
+        delta_th = math.atan2(wy-y, wx-x) - a # 現在の方向を基準にした，wpまでの方向差
+        if delta_th > pi:
+            delta_th -= 2*pi
+        elif delta_th < -pi:
+            delta_th += 2*pi
 
     if target_r > 0.5:
         v = 0.55
@@ -739,6 +832,8 @@ try:
             img_disp_color = img_disp
             if NAVI:
                 v, w, target_r, target_a, wp_index, estimated_pose = get_navigation_cmd(estimated_pose, wp_list, wp_index, global_map)
+                # wp_index が最後まで行ったら終了処理に飛ばす
+
                 # Get control command from MPC
                 # 以下はうまくいっていない
                 if 0:
@@ -761,10 +856,11 @@ try:
                     iy = int(-y/mapInfo.csize + mapInfo.originY)
                     cv2.circle(img_disp_color, (ix, iy), 10, (255, 0, 0), 2, cv2.LINE_AA)
                 # ターゲットのwp
-                tx, ty = wp_list[wp_index]
-                ix = int( tx/mapInfo.csize + mapInfo.originX)
-                iy = int(-ty/mapInfo.csize + mapInfo.originY)
-                cv2.circle(img_disp_color, (ix, iy), 20, (255, 0, 0), -1, cv2.LINE_AA)
+                if wp_index < len(wp_list):
+                    tx, ty = wp_list[wp_index]
+                    ix = int( tx/mapInfo.csize + mapInfo.originX)
+                    iy = int(-ty/mapInfo.csize + mapInfo.originY)
+                    cv2.circle(img_disp_color, (ix, iy), 20, (255, 0, 0), -1, cv2.LINE_AA)
                 # 推定座標
                 ix = int( rx/mapInfo.csize + mapInfo.originX)
                 iy = int(-ry/mapInfo.csize + mapInfo.originY)
@@ -782,6 +878,7 @@ try:
                 x_current = x_init
                 u_opt, x0 = mpc.compute_optimal_control(x_current, x0)
                 md.send_vw(fd, u_opt[0], u_opt[1])
+                v, w = float(u_opt[0]), float(u_opt[1])
 
             ## MPCに与えたターゲット座標
             #tx =  int(-x_ref[1, 0]/csize) + width//2

@@ -1,5 +1,5 @@
 import cv2
-import ReadConfig as rc
+import modules_py.ReadConfig as rc
 import numpy as np
 
 class DrawText():
@@ -16,7 +16,7 @@ class DrawText():
     def draw_text(self, img, text, x, y):
         cv2.putText(img, text, (x, y), self.font, self.font_scale, self.text_color, self.font_thickness)
 
-map_dir_path = "./experiment_250331-1"
+map_dir_path = "./experiment_250405-0"
 wp_filepath = map_dir_path + "/wp_list.txt"
 path_filepath = map_dir_path + "/global_map/rebuild_robot_poses.txt"
 mapInfo = rc.read_mapInfo(f"{map_dir_path}/global_map/mapInfo.lua")

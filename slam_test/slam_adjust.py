@@ -1,15 +1,22 @@
 import numpy as np
 import cv2
 import math
+import sys
 from scipy.optimize import differential_evolution, minimize
+import PyQtImageWriter
 
 import time
 import copy
 
-STORE_ROOT_DIR_NAME = f"slam_result_250330-2"
+STORE_ROOT_DIR_NAME = f"slam_result_250404-1"
 enc_filepath = f"{STORE_ROOT_DIR_NAME}/enclog"  # enclogファイルのパス
 urg_filepath = f"{STORE_ROOT_DIR_NAME}/urglog"  # urglogファイルのパス
 robot_poses_filepath = f"{STORE_ROOT_DIR_NAME}/robot_poses.txt"
+
+# PyQtの準備
+app = PyQtImageWriter.init()
+window = PyQtImageWriter.ImageWindow()
+window.show()
 
 # エンコーダーデータの読み込み
 def load_enclog(filepath):
@@ -299,6 +306,7 @@ def slam_process(enclog_data, urglog_data, gridmap, poses):
     return gridmap, robot_poses
 
 def slam_process_re(robot_poses, urglog_data, gridmap):
+    global draw_img
     # すでに得られた地図を手動調整する
 
     time_diff_robotpose_urg = 50 # msec
@@ -330,49 +338,59 @@ def slam_process_re(robot_poses, urglog_data, gridmap):
 
     # robot_posesを描く
     img_disp = copy.deepcopy(gridmap.gmap)
+    img_disp = cv2.cvtColor(img_disp, cv2.COLOR_GRAY2BGR)
+
     for p in robot_poses:
         ix = int( p[1] / gridmap.csize) + gridmap.originX
         iy = int(-p[2] / gridmap.csize) + gridmap.originY
         cv2.circle(img_disp, (ix, iy), 5, (82, 54, 20), -1)
-    cv2.imshow("gmap", img_disp)
-    cv2.waitKey()
 
     cur_pose = robot_poses[0]
     cur_index = 0
     print("編集点を選択します．[n]ext, [p]revious, [s]elect")
     img_disp_tmp = copy.deepcopy(img_disp)
+    key = None
     while True:
-        key = cv2.waitKey(5)
-        if key == ord('q'):
+        if PyQtImageWriter.pressed_key == ord('q'):
             break
-        elif key == ord('n'):
-            print("move to next pose")
+        elif PyQtImageWriter.pressed_key == None:
+            pass
+        elif PyQtImageWriter.pressed_key == ord('n'):
             cur_index += 1
             if cur_index >= len(robot_poses):
                 cur_index = 0   # 最初に戻る
-        elif key == ord('p'):
-            print("move to previous pose")
+        elif PyQtImageWriter.pressed_key == ord('N'):
+            cur_index += 10
+            if cur_index >= len(robot_poses):
+                cur_index = 0   # 最初に戻る
+        elif PyQtImageWriter.pressed_key == ord('p'):
             cur_index -= 1
             if cur_index < 0:
                 cur_index = len(robot_poses) - 1    # 最後に進む
-        elif key == ord('s'):
+        elif PyQtImageWriter.pressed_key == ord('P'):
+            cur_index -= 10
+            if cur_index < 0:
+                cur_index = len(robot_poses) - 1    # 最後に進む
+        elif PyQtImageWriter.pressed_key == ord('s'):
             print("select the current pose")
             print("hjkl: move the robot in the xy direction / ui: rotate the robot ccw or cw")
             while True:
-                key = cv2.waitKey(5)
-                if key == ord('h'):
-                    robot_poses[cur_index][1] -= 1*gridmap.csize
-                elif key == ord('j'):
-                    robot_poses[cur_index][2] -= 1*gridmap.csize
-                elif key == ord('k'):
-                    robot_poses[cur_index][2] += 1*gridmap.csize
-                elif key == ord('l'):
-                    robot_poses[cur_index][1] += 1*gridmap.csize
-                elif key == ord('u'):
+                if PyQtImageWriter.pressed_key == ord('h'):
+                    robot_poses[cur_index][1] -= 5*gridmap.csize
+                elif PyQtImageWriter.pressed_key == ord('j'):
+                    robot_poses[cur_index][2] -= 5*gridmap.csize
+                elif PyQtImageWriter.pressed_key == ord('k'):
+                    robot_poses[cur_index][2] += 5*gridmap.csize
+                elif PyQtImageWriter.pressed_key == ord('l'):
+                    robot_poses[cur_index][1] += 5*gridmap.csize
+                elif PyQtImageWriter.pressed_key == ord('u'):
+                    print("pressed u")
                     robot_poses[cur_index][3] += 0.1*np.pi/180
-                elif key == ord('i'):
+                elif PyQtImageWriter.pressed_key == ord('i'):
+                    print("pressed i")
                     robot_poses[cur_index][3] -= 0.1*np.pi/180
-                elif key == ord('q'):
+                elif PyQtImageWriter.pressed_key == ord('q'):
+                    print("pressed q")
                     break
                 # 移動したcur_indexとその前の相対移動量を更新する
                 if cur_index == 0:
@@ -395,36 +413,106 @@ def slam_process_re(robot_poses, urglog_data, gridmap):
                 robot_poses = copy.deepcopy(new_robot_poses)
                 # 新しいgridmapを用意する
                 gridmap.gridmap_clear()
+                # 基準マップを配置する
+                #gridmap.base_map_draw()
                 # 新しく点群全体を配置する
                 for ind, robot_pose in enumerate(robot_poses):
                     urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_series[ind]
                     points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose[1:])
                     gridmap.update_gridmap(points)
-                    #cv2.imshow("gmap", gridmap.gmap)
-                    #cv2.waitKey(5)
                 img_disp = gridmap.gmap
                 # robot_posesを描く
                 img_disp_tmp = copy.deepcopy(img_disp)
-                for p in robot_poses:
-                    ix = int( p[1] / gridmap.csize) + gridmap.originX
-                    iy = int(-p[2] / gridmap.csize) + gridmap.originY
-                    cv2.circle(img_disp_tmp, (ix, iy), 5, (82, 54, 20), -1)
-                cv2.imshow("gmap", img_disp_tmp)
+                img_disp_tmp = cv2.cvtColor(img_disp_tmp, cv2.COLOR_GRAY2BGR)
+                #for p in robot_poses:
+                #    ix = int( p[1] / gridmap.csize) + gridmap.originX
+                #    iy = int(-p[2] / gridmap.csize) + gridmap.originY
+                #    cv2.circle(img_disp_tmp, (ix, iy), 5, (82, 54, 20), -1)
+                poses = np.array(robot_poses)  # (N, 3) の形に変換
+                ix = (poses[:, 1] / gridmap.csize).astype(int) + gridmap.originX
+                iy = (-poses[:, 2] / gridmap.csize).astype(int) + gridmap.originY
+                # OpenCVのcircle関数はループが必要なので、リスト内包表記を活用
+                [cv2.circle(img_disp_tmp, (x, y), 5, (82, 54, 20), -1) for x, y in zip(ix, iy)]
+                draw_img = img_disp_tmp
+                frame = copy.deepcopy(draw_img)
+                window.set_frame(frame)
+            # cur_indexの場所からSLAMを実行するかどうか
+            print("Retry SLAM current index? y/[n]")
+            while True:
+                if PyQtImageWriter.pressed_key == ord('y'):
+                    print("Execute SLAM")
+                    # cur_indexまでの経路でグリッドマップを作成
+                    # 新しいgridmapを用意する
+                    gridmap.gridmap_clear()
+                    # 基準マップを配置する
+                    #gridmap.base_map_draw()
+                    # 新しく点群全体を配置する
+                    for ind, robot_pose in enumerate(robot_poses):
+                        if ind < cur_index: # cur_indexまでの点群だけを描画する．
+                            urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_series[ind]
+                            points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose[1:])
+                            gridmap.update_gridmap(points)
+                    # ここからがcur_indexから始めるSLAM
+                    for i in range(cur_index, len(urglog_data)):
+                        urg_timestamp, start_angle, end_angle, angle_step, ranges, intensity = urglog_data[i]
+                        if len(ranges) != 1081: 
+                            print(f"skip data: {urg_timestamp} {i}")
+                            continue
+                        if i >= len(relative_poses): break
+                        _, u, v, a = relative_poses[i]
+                        _, rx, ry, ra = robot_poses[i-1]  # このindexはSLAMで推定した最後の姿勢．要確認
+                        rx = u*math.cos(ra) - v*math.sin(ra) + rx
+                        ry = u*math.sin(ra) + v*math.cos(ra) + ry
+                        ra = a + ra
+                        robot_pose = [rx, ry, ra]
+                        # robot_poseを初期値とし，最適化処理を経てrobot_poseを更新する
+                        if len(robot_poses) == 1:
+                            pass
+                        else:
+                            robot_pose = optimize_pose_combined(gridmap, urglog_data[i], robot_pose)
+                        points = convert_lidar_to_points(start_angle, end_angle, angle_step, ranges, intensity, robot_pose)
+                        gridmap.update_gridmap(points)
+                        #gridmap.update_intensity(points, robot_pose)
+                        robot_poses[i]=[urg_timestamp, robot_pose[0], robot_pose[1], robot_pose[2]]
+                        print(f"{robot_poses[i][0]} {robot_poses[i][1]:.3f} {robot_poses[i][1]:.3f} {robot_poses[i][1]*180/np.pi:.1f}")
+
+                    img_disp = gridmap.gmap
+                    # robot_posesを描く
+                    img_disp_tmp = copy.deepcopy(img_disp)
+                    img_disp_tmp = cv2.cvtColor(img_disp_tmp, cv2.COLOR_GRAY2BGR)
+                    poses = np.array(robot_poses)  # (N, 3) の形に変換
+                    ix = (poses[:, 1] / gridmap.csize).astype(int) + gridmap.originX
+                    iy = (-poses[:, 2] / gridmap.csize).astype(int) + gridmap.originY
+                    # OpenCVのcircle関数はループが必要なので、リスト内包表記を活用
+                    [cv2.circle(img_disp_tmp, (x, y), 5, (82, 54, 20), -1) for x, y in zip(ix, iy)]
+                    draw_img = img_disp_tmp
+                    frame = copy.deepcopy(draw_img)
+                    window.set_frame(frame)
+                    break
+                elif PyQtImageWriter.pressed_key == ord('n'):
+                    print("Exit selection mode")
+                    break
+                window.set_frame(frame)
+        s = time.time()
         for p in robot_poses:
             ix = int( p[1] / gridmap.csize) + gridmap.originX
             iy = int(-p[2] / gridmap.csize) + gridmap.originY
             cv2.circle(img_disp_tmp, (ix, iy), 5, (82, 54, 20), -1)
+        print(f"draw robot_poses: {time.time() - s}")
         p = robot_poses[cur_index]
         ix = int( p[1] / gridmap.csize) + gridmap.originX
         iy = int(-p[2] / gridmap.csize) + gridmap.originY
         cv2.circle(img_disp_tmp, (ix, iy), 20, (200, 200, 0), -1)
-        cv2.imshow("gmap", img_disp_tmp)
-        img_disp_tmp = copy.deepcopy(img_disp)
 
-    print("done")
+        frame = copy.deepcopy(img_disp_tmp)
+        #frame = cv2.imread("250314-3/rebuild_opt.png")
+        # PyQtの準備
+        window.set_frame(frame)
+
+    # 結果の書き出し
     draw_poses_gmap = gridmap.draw_poses(robot_poses)
     cv2.imshow("gmap", draw_poses_gmap)
-    cv2.imwrite("rebuilt_opt.png", gridmap.gmap)
+    cv2.imwrite("rebuild_opt.png", gridmap.gmap)
     cv2.waitKey()
 
     # 再構築したロボット軌跡をファイルに書き出す
@@ -432,6 +520,12 @@ def slam_process_re(robot_poses, urglog_data, gridmap):
         for p in robot_poses:
             file.write(f"{p[0]} {p[1]} {p[2]} {p[3]}\n")
 
+    print("Completed.")
+    # PyQtの描画を終了
+    # この処理はプロセス自体を止める．以下のprint文は実行されないので注意
+    # returnもしない
+    sys.exit(app.exec_())
+    print("bye")
     return gridmap, robot_poses
 
 # 評価関数をグローバルに移動
@@ -512,6 +606,14 @@ class Gridmap():
         self.originX = int(abs(xmin)/csize)
         self.originY = int(abs(ymax)/csize)
         self.gmap_intensity = [[[] for _ in range(self.height)] for _ in range(self.width)]
+        # 以下は基準マップの再描画に使用する．resize時に登録する
+        self.base_gmap = None
+        self.base_gmap_width = None
+        self.base_gmap_height = None
+        self.base_gmap_left_x = None
+        self.base_gmap_left_y = None
+        self.base_gmap_right_x = None
+        self.base_gmap_right_y = None
 
     def update_gridmap(self, points):
         ix = ( points[:, 0] / self.csize).astype(int) + self.originX
@@ -576,6 +678,46 @@ class Gridmap():
     def gridmap_clear(self):
         self.gmap = np.full((self.height, self.width, 1), 123, dtype=np.uint8)
 
+    def resize(self, new_minX, new_minY, new_maxX, new_maxY):
+        new_width  = int((new_maxX - new_minX)/csize)
+        new_height = int((new_maxY - new_minY)/csize)
+        self.base_gmap = copy.deepcopy(self.gmap)
+        old_gmap = self.base_gmap[:, :, np.newaxis]  # (H, W) → (H, W, 1)
+        h, w, _ = old_gmap.shape
+
+        self.gmap = np.full((new_height, new_width, 1), 223, dtype=np.uint8)
+        # 既存のgmapを新しいgmapに挿入
+        # img_integrated[0:height, width_img_disp_color:width_img_disp_color+width] = frame
+        left_x = int(abs(new_minX - self.xmin)/self.csize)
+        left_y = int(abs(new_maxY - self.ymax)/self.csize)
+        right_x = left_x + self.width
+        right_y = left_y + self.height
+        print(old_gmap.shape)
+        print(self.gmap.shape)
+        print(self.height, self.width)
+        print(left_x, left_y, right_x, right_y)
+        self.gmap[left_y:right_y, left_x:right_x] = old_gmap
+
+        self.xmin = new_minX
+        self.ymin = new_minY
+        self.xmax = new_maxX
+        self.ymax = new_maxY
+        self.width  = int((self.xmax - self.xmin)/self.csize)
+        self.height = int((self.ymax - self.ymin)/self.csize)
+        self.originX = int(abs(self.xmin)/self.csize)
+        self.originY = int(abs(self.ymax)/self.csize)
+
+        self.base_gmap_width = w
+        self.base_gmap_height = h
+        self.base_gmap_left_x = left_x
+        self.base_gmap_left_y = left_y
+        self.base_gmap_right_x = right_x
+        self.base_gmap_right_y = right_y
+
+    def base_map_draw(self):
+        old_gmap = self.base_gmap[:, :, np.newaxis]  # (H, W) → (H, W, 1)
+        self.gmap[self.base_gmap_left_y:self.base_gmap_right_y, self.base_gmap_left_x:self.base_gmap_right_x] = old_gmap
+        
 def init_gridmap(xmin = -5.0, ymin = -5.0, xmax = 5.0, ymax = 5.0, csize = 0.05):
     gmap = Gridmap(xmin, ymin, xmax, ymax, csize)
     return gmap
@@ -601,6 +743,12 @@ if __name__ == "__main__":
     minX = -75.0
     minY = -160.0
     maxX = 75.0
+    maxY = 35.0
+    csize = 0.025
+    # 図書館前~体育館
+    minX = -75.0
+    minY = -160.0
+    maxX = 170.0
     maxY = 35.0
     csize = 0.025
 

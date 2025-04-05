@@ -25,13 +25,12 @@ import pygame
 import DummySerial      # 接続に失敗した時のためのダミー
 import DummyLidar       # Ditto
 import DummyJoystick    # Ditto
-import ReadConfig as rc
-from Colors import hex_to_rgb
-import Odometory
-import Lidar
+import modules_py.ReadConfig as rc
+from modules_py.Colors import hex_to_rgb
+import modules_py.Lidar as Lidar
 
-import MotorDriver as md
-import MPC
+import modules_cpp.MotorDriver as md
+import modules_py.MPC as MPC
 
 # Include default configuration
 config = rc.read_config('config.lua')
@@ -164,9 +163,10 @@ def lidar_measurement_fd(urg, start_angle, end_angle, step_angle, echo_size, fna
             #file.write(f"LASERSCANRT {ts} {data_size} {start_angle} {end_angle} {step_angle} {echo_size} ")
             if fname == "urglog":
                 success, urg_data = urg.one_shot_intensity()
-                file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
-                for d in urg_data:
-                    file.write(f"{d[1]} 0 {d[0]} {d[2]} ")
+                if success:
+                    file.write(f"LASERSCANRT {ts} {len(urg_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
+                    for d in urg_data:
+                        file.write(f"{d[1]} 0 {d[0]} {d[2]} ") # r 0 index intensity
             elif fname == "urglog_m":
                 success, urg_m_data = urg.one_shot_intensity()
                 file.write(f"LASERSCANRT {ts} {len(urg_m_data)*4} {start_angle} {end_angle} {step_angle} {echo_size} ")
@@ -303,48 +303,8 @@ try:
     while True:
         ts = int(time.time() * 1e3)
 
-        # Get & Show LiDAR data
-        #success, urg_data = urg.one_shot()
-        #if success:
+        # Show LiDAR data
         img, d = draw_lidar_on_img(img_org, urg_data, cs, sn)
-        # 現在地図を用いて自己位置推定
-        # d_values = np.array([d[1] for d in urg_data])  # LiDARデータの距離成分を抽出
-        """
-        best = 0
-        best_x = rx
-        best_y = ry
-        best_a = ra
-        check_color = hex_to_rgb(config.map.color.bg)
-        for sa in np.arange(ra - 45*pi/180, ra + 45*pi/180, 1*pi/180):
-            cs_loc = [cos((i * 0.25 - 135.0)*pi/180 + sa) for i in range(1081)]
-            sn_loc = [sin((i * 0.25 - 135.0)*pi/180 + sa) for i in range(1081)]
-            for sx in np.arange(rx - 0.5, rx + 0.5, 0.1):
-                for sy in np.arange(ry - 0.5, ry + 0.5, 0.1):
-                    xd = d * cs_loc / 1000 + sx 
-                    yd = d * sn_loc / 1000 + sy 
-                    ix = (-yd / csize + width // 2).astype(int)
-                    iy = (-xd / csize + height // 2).astype(int)
-                    valid_mask = (ix >= 0) & (ix < width) & (iy >= 0) & (iy < height)
-                    ix = ix[valid_mask]
-                    iy = iy[valid_mask]
-                    #prog_img = copy.deepcopy(map)
-                    #for x, y in zip(ix, iy):
-                    #    prog_img[y-2:y+3, x-2:x+3] = (255, 0, 0)  # 矩形領域を一括で塗りつぶす
-                    #cv2.imshow("prog", prog_img)
-                    #cv2.waitKey(5)
-                    pixels = map[iy, ix]  
-                    eval = np.sum(pixels != check_color)
-
-                    if eval > best:
-                        best = eval
-                        best_x = sx
-                        best_y = sy
-                        best_a = sa
-        rx = best_x
-        ry = best_y
-        ra = best_a
-        print(rx, ry, ra, best)
-        """
 
         # Get joystick status
         for event in pygame.event.get():
